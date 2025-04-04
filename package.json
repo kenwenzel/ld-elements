@@ -1,0 +1,31 @@
+{
+  "name": "ld-elements",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "coverage": "vitest run --coverage",
+    "test": "vitest",
+    "list": "vitest list",
+    "test:ui": "vitest --ui",
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@heximal/expressions": "^0.1.5",
+    "lit": "^3.2.1"
+  },
+  "devDependencies": {
+    "@rdfjs/types": "^2.0.1",
+    "@types/n3": "^1.24.2",
+    "@vitest/browser": "^3.1.1",
+    "jsdom": "^26.0.0",
+    "n3": "^1.24.2",
+    "playwright": "^1.51.1",
+    "sparql-engine": "^0.8.3",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.5",
+    "vitest": "^3.1.1"
+  }
+}
