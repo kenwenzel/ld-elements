@@ -1,8 +1,7 @@
-import { render as renderLit, nothing, TemplateResult, html, TemplateInstance } from 'lit-html';
-import { CompiledTemplate, CompiledTemplateResult } from 'lit-html';
+import { CompiledTemplate, CompiledTemplateResult, html, nothing, render as renderLit, TemplateInstance, TemplateResult } from 'lit-html';
 import { _$LH } from 'lit-html/private-ssr-support.js';
 
-import { parse, Parser, EvalAstFactory } from '@heximal/expressions';
+import { EvalAstFactory, parse, Parser } from '@heximal/expressions';
 import type { Expression, Scope } from '@heximal/expressions/lib/eval';
 
 const getTemplateHtml = _$LH.getTemplateHtml
@@ -133,7 +132,7 @@ export const ifHandler: TemplateHandler = (
 
 /**
  * Groups elements of an array by a given key function.
- * 
+ *
  * @param array The array with the elements
  * @param keyFunc The key function
  * @returns map of grouped elements
@@ -275,6 +274,7 @@ export const repeatHandler: TemplateHandler = (
     }
     return undefined;
 };
+
 
 export const defaultHandlers = <TemplateHandlers>{
     if: ifHandler,

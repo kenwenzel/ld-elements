@@ -287,12 +287,12 @@ export class RDFaParser extends CurieSupport {
     const target = newObj ? newObj : newSubj;
     const typeQuads: Array<Quad> = target
       ? types.map((t) =>
-          rdf.factory.quad(
-            target as Quad_Subject,
-            rdf.factory.namedNode(rdf.vocab.rdf.type),
-            t
-          )
+        rdf.factory.quad(
+          target as Quad_Subject,
+          rdf.factory.namedNode(rdf.vocab.rdf.type),
+          t
         )
+      )
       : [];
 
     // step 7 rel/rev triples
@@ -300,11 +300,11 @@ export class RDFaParser extends CurieSupport {
     const relRevQuads: Array<Quad> =
       newObj && quadSubj
         ? ([
-            ...relterms.map((p) => rdf.factory.quad(quadSubj, p, newObj)),
-            ...revterms.map((p) =>
-              rdf.factory.quad(newObj as Quad_Subject, p, quadSubj)
-            ),
-          ] as Array<Quad>)
+          ...relterms.map((p) => rdf.factory.quad(quadSubj, p, newObj)),
+          ...revterms.map((p) =>
+            rdf.factory.quad(newObj as Quad_Subject, p, quadSubj)
+          ),
+        ] as Array<Quad>)
         : [];
 
     // step 8 incomplete triples.
@@ -320,9 +320,9 @@ export class RDFaParser extends CurieSupport {
     const completedQuads: Array<Quad> =
       !skip && newSubj
         ? ([
-            ...pendingRel.map((p) => rdf.factory.quad(subj, p, newSubj)),
-            ...pendingRev.map((p) => rdf.factory.quad(newSubj, p, subj)),
-          ] as Array<Quad>)
+          ...pendingRel.map((p) => rdf.factory.quad(subj, p, newSubj)),
+          ...pendingRev.map((p) => rdf.factory.quad(newSubj, p, subj)),
+        ] as Array<Quad>)
         : [];
 
     // step 11. recur
@@ -341,15 +341,15 @@ export class RDFaParser extends CurieSupport {
         const [newC, quads] = skip
           ? this.walk(c, base, subj, obj, pendingRel, pendingRev, lang, s)
           : this.walk(
-              c,
-              base,
-              quadSubj,
-              newObj2 ? newObj2 : quadSubj,
-              pending8f,
-              pending8r,
-              lang,
-              s
-            );
+            c,
+            base,
+            quadSubj,
+            newObj2 ? newObj2 : quadSubj,
+            pending8f,
+            pending8r,
+            lang,
+            s
+          );
 
         changedChild = changedChild || newC !== c;
         newChildren.push(newC);
@@ -401,14 +401,16 @@ export class RDFaParser extends CurieSupport {
   ): [Element, Quad_Subject | undefined, Quad_Object | undefined, boolean] {
     const [e1, about] = this.ref1(e, 'about', base, s);
     const [e2, resource] = this.ref1(e1, 'resource', base, s);
+    let result = e2;
 
     var newSubj: Quad_Subject | undefined = undefined;
     if (about) {
       newSubj = about;
     } else {
-      const src = e.getAttribute('src');
+      const [e3, src] = this.ref1(e, 'src', base, s);
+      result = e3;
       if (src) {
-        newSubj = rdf.factory.namedNode(Uris.combine(base, src));
+        newSubj = src;
       } else if (norel && resource) {
         newSubj = resource;
       } else if (norel && e.getAttribute('href')) {
@@ -435,7 +437,7 @@ export class RDFaParser extends CurieSupport {
 
     const skip: boolean = norel && !newSubj && props.length == 0;
 
-    return [e2, newSubj as Quad_Subject, newObj, skip];
+    return [result, newSubj as Quad_Subject, newObj, skip];
   }
 
   handleQuads(e: Element, quads: Array<Quad>, isLiteral: boolean): Array<Quad> {
@@ -498,13 +500,13 @@ export class RDFaParser extends CurieSupport {
       if (result) {
         return result.value == rdf.vocab.rdf.XMLLiteral
           ? [
-              e,
-              rdf.factory.literal(
-                e.innerHTML,
-                rdf.factory.namedNode(rdf.vocab.rdf.XMLLiteral)
-              ),
-              true,
-            ]
+            e,
+            rdf.factory.literal(
+              e.innerHTML,
+              rdf.factory.namedNode(rdf.vocab.rdf.XMLLiteral)
+            ),
+            true,
+          ]
           : [e, rdf.factory.literal(lex || '', result as NamedNode), false];
       }
       return [e, undefined, false];
