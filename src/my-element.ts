@@ -1,127 +1,93 @@
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
-import litLogo from './assets/lit.svg'
-import viteLogo from '/vite.svg'
+import { customElement } from 'lit/decorators.js'
+import { RDFaToSparqlParser } from './rdfa/rdfa-sparql';
+import { prepareTemplate, rdfa, toHtml } from './rdfa/lit-rdfa';
+import { until } from 'lit/directives/until.js';
 
 /**
  * An example element.
  *
- * @slot - This element has a slot
- * @csspart button - The button
  */
-@customElement('my-element')
-export class MyElement extends LitElement {
-  /**
-   * Copy for the read the docs hint.
-   */
-  @property()
-  docsHint = 'Click on the Vite and Lit logos to learn more'
+@customElement('rdfa-element')
+export class RdfaElement extends LitElement {
+  async runSparqlQuery(sparqlEndpointUrl: string, sparqlQuery: string): Promise<any[]> {
+    try {
+      const response = await fetch(sparqlEndpointUrl, {
+        method: 'POST', // Most SPARQL endpoints accept POST for queries
+        headers: {
+          'Accept': 'application/sparql-results+json', // Request JSON results
+          'Content-Type': 'application/sparql-query'
+        },
+        body: sparqlQuery
+      });
 
-  /**
-   * The number of times the button has been clicked.
-   */
-  @property({ type: Number })
-  count = 0
+      if (!response.ok) {
+        console.error(`HTTP error! status: ${response.status}`);
+        return [];
+      }
 
-  render() {
-    return html`
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src=${viteLogo} class="logo" alt="Vite logo" />
-        </a>
-        <a href="https://lit.dev" target="_blank">
-          <img src=${litLogo} class="logo lit" alt="Lit logo" />
-        </a>
-      </div>
-      <slot></slot>
-      <div class="card">
-        <button @click=${this._onClick} part="button">
-          count is ${this.count}
-        </button>
-      </div>
-      <p class="read-the-docs">${this.docsHint}</p>
-    `
+      const data = await response.json();
+      return data.results.bindings || [];
+    } catch (error) {
+      console.error('Error running SPARQL query:', error);
+      return [];
+    }
   }
 
-  private _onClick() {
-    this.count++
+  render() {
+    const template = html`<div about="?cat" prefix="
+      wd: http://www.wikidata.org/entity/
+      wdt: http://www.wikidata.org/prop/direct/
+      rdfs: http://www.w3.org/2000/01/rdf-schema#">
+        <span rel="wdt:P31" resource="wd:Q146"></span>
+
+        <a href="?cat">
+          <span about="?cat" property="rdfs:label" content="?l" data-filter="lang(?l) = 'en'">{{ l }}</span>
+        </a>
+
+        <div class="images">
+          <img resource="?cat" rev="wdt:P18" src="?img">
+        </div>
+      </div>`;
+
+    const values: Array<any> = []
+    const templateHtml = toHtml(template, values)
+
+    const el = document.createElement("template")
+    el.innerHTML = templateHtml[0] as unknown as string
+
+    const p = new RDFaToSparqlParser(el.content.firstChild as Element, 'http://example.org/')
+    const query = p.getQuery();
+
+    console.log(query)
+
+    const litTemplate = prepareTemplate(el);
+
+    const result = this.runSparqlQuery("https://query.wikidata.org/sparql", query).then(bindings => {
+      const model: any = {
+        values: values,
+      }
+      model.bindings = bindings;
+      return litTemplate(model);
+    })
+
+    return until(result);
   }
 
   static styles = css`
-    :host {
-      max-width: 1280px;
-      margin: 0 auto;
-      padding: 2rem;
-      text-align: center;
-    }
-
-    .logo {
-      height: 6em;
-      padding: 1.5em;
-      will-change: filter;
-      transition: filter 300ms;
-    }
-    .logo:hover {
-      filter: drop-shadow(0 0 2em #646cffaa);
-    }
-    .logo.lit:hover {
-      filter: drop-shadow(0 0 2em #325cffaa);
-    }
-
-    .card {
-      padding: 2em;
-    }
-
-    .read-the-docs {
-      color: #888;
-    }
-
-    ::slotted(h1) {
-      font-size: 3.2em;
-      line-height: 1.1;
-    }
-
-    a {
-      font-weight: 500;
-      color: #646cff;
-      text-decoration: inherit;
-    }
-    a:hover {
-      color: #535bf2;
-    }
-
-    button {
-      border-radius: 8px;
-      border: 1px solid transparent;
-      padding: 0.6em 1.2em;
-      font-size: 1em;
-      font-weight: 500;
-      font-family: inherit;
-      background-color: #1a1a1a;
-      cursor: pointer;
-      transition: border-color 0.25s;
-    }
-    button:hover {
-      border-color: #646cff;
-    }
-    button:focus,
-    button:focus-visible {
-      outline: 4px auto -webkit-focus-ring-color;
-    }
-
-    @media (prefers-color-scheme: light) {
-      a:hover {
-        color: #747bff;
-      }
-      button {
-        background-color: #f9f9f9;
-      }
-    }
+  .images {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+  }
+  img {
+    max-width: 400px;
+  }
   `
 }
 
 declare global {
   interface HTMLElementTagNameMap {
-    'my-element': MyElement
+    'rdfa-element': RdfaElement
   }
 }
