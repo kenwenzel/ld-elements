@@ -8,13 +8,13 @@
     "test": "vitest",
     "list": "vitest list",
     "test:ui": "vitest --ui",
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@heximal/expressions": "^0.1.5",
-    "lit": "^3.2.1"
+    "lit": "^3.2.1",
+    "@heximal/expressions": "^0.1.5"
   },
   "devDependencies": {
     "@rdfjs/types": "^2.0.1",
