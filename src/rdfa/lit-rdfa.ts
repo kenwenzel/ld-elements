@@ -213,6 +213,11 @@ const bindHandler: TemplateHandler = (
         itemModel.bindings = bindings;
         itemModel.index = index;
         itemModel['this'] = model['this'] ?? model;
+        for (const binding of bindings) {
+            for (const [varName, v] of Object.entries(binding)) {
+                itemModel[varName] = (v as any)?.value;
+            }
+        }
 
         const resultValues: Array<unknown> = [];
         litTemplate.parts.map((part) => {
@@ -447,7 +452,7 @@ const createAttributeBinder = (attributeName: string, value: string): PartUpdate
     const optional = value.startsWith("??") || value?.startsWith("?$")
     const varName = value.replace(/^[?]?[?$]/, "")
     return (model: any, _handlers: TemplateHandlers, _renderers: Renderers) => {
-        return model['bindings']?.[0]?.[varName]?.value
+        return [model['bindings']?.[0]?.[varName]?.value]
     }
 }
 
@@ -480,13 +485,14 @@ const makeLitTemplate = (
         if (node.nodeType === Node.ELEMENT_NODE) {
             nodeIndex++;
             const element = node as Element;
+
             const attributeNames = element.getAttributeNames();
-            let ignoreHandler = !!element.getAttribute("ignoreHandler")
-            if (ignoreHandler) {
-                element.removeAttribute("ignoreHandler")
+            let skipRdfa = !!element.getAttribute("_skipRdfa")
+            if (skipRdfa) {
+                element.removeAttribute("_skipRdfa")
             }
 
-            if (!ignoreHandler && attributeNames.find(name => {
+            if (!skipRdfa && attributeNames.find(name => {
                 if (name.endsWith("$lit$")) {
                     // ignore attributes bound by expressions
                     return false
@@ -498,7 +504,7 @@ const makeLitTemplate = (
                 element.parentNode!.insertBefore(document.createComment(''), element);
                 elementsToRemove.push(element);
                 // ensure that bind handler is not created in next recursive invocation
-                element.setAttribute("ignoreHandler", "true")
+                element.setAttribute("_skipRdfa", "true")
 
                 // this node requires bindings
                 let update = (model: any, handlers: TemplateHandlers, renderers: Renderers) => {
@@ -516,6 +522,13 @@ const makeLitTemplate = (
                     index: nodeIndex,
                     update,
                 });
+
+                // either go to next sibling or stop processing
+                if (! walker.nextSibling()) {
+                    break;
+                }
+                // skip attribute bindings
+                continue;
             } else if (element.tagName === 'TEMPLATE') {
                 const type = element.getAttribute('type');
                 const name = element.getAttribute('name');
@@ -523,6 +536,7 @@ const makeLitTemplate = (
                 if (type !== null || name !== null) {
                     element.parentNode!.insertBefore(document.createComment(''), element);
                     elementsToRemove.push(element);
+
                     let update: PartUpdater;
                     if (type !== null) {
                         // This is a control-flow call, like if/repeat
@@ -595,91 +609,95 @@ const makeLitTemplate = (
                         index: nodeIndex,
                         update,
                     });
-                }
-            } else {
-                const attributeNames = element.getAttributeNames();
-                for (const attributeName of attributeNames) {
-                    let update: PartUpdater;
-                    let strings: Array<string>;
-
-                    let name = attributeName;
-                    const attributeValue = element.getAttribute(attributeName)!;
-                    if (attributeName.endsWith("$lit$")) {
-                        // this attribute has a lit marker and an associated value
-                        name = attributeName.replace(/[$]lit[$]$/, "")
-
-                        strings = attributeValue.split(marker)
-                        let startIndex = ++valueIndex
-                        let endIndex = valueIndex + strings.length - 2
-                        valueIndex = endIndex
-
-                        update = (model: object, _handlers: TemplateHandlers, _renderers: Renderers) => {
-                            // endIndex is exclusive
-                            return (model as any).values.slice(startIndex, endIndex + 1)
-                        }
-                    } else {
-                        if (attributeValue.startsWith("?")) {
-                            strings = ['', '']
-                            update = createAttributeBinder(attributeName, attributeValue)
-                        } else {
-                            // TODO: use alternative to negative lookbehind
-                            // (but it's so convenient!)
-                            const splitValue = attributeValue.split(
-                                /(?<!\\){{(.*?)(?:(?<!\\)}})/g
-                            );
-                            if (splitValue.length === 1) {
-                                continue;
-                            }
-
-                            strings = [splitValue[0]];
-                            const exprs: Array<Expression> = [];
-                            for (let i = 1; i < splitValue.length; i += 2) {
-                                const exprText = splitValue[i];
-                                exprs.push(parse(exprText, astFactory) as Expression);
-                                strings.push(splitValue[i + 1]);
-                            }
-                            update = (
-                                model: object,
-                                _handlers: TemplateHandlers,
-                                _renderers: Renderers
-                            ) => {
-                                return exprs.map((expr) => expr.evaluate(model));
-                            }
-                        }
-                    }
-
-                    element.removeAttribute(attributeName);
-
-                    let ctor = AttributePart;
-                    const prefix = attributeName[0];
-                    if (prefix === '.') {
-                        name = toCamelCase(attributeName.substring(1));
-                        ctor = PropertyPart;
-                    } else if (prefix === '?') {
-                        name = attributeName.substring(1);
-                        ctor = BooleanAttributePart;
-                    } else if (prefix === '@') {
-                        name = toCamelCase(attributeName.substring(1));
-                        ctor = EventPart;
-                    }
-
-                    litTemplate.parts.push({
-                        type: 1, // attribute binding
-                        index: nodeIndex,
-                        name,
-                        strings,
-                        ctor,
-                        update,
-                    });
+                    // skip attribute bindings
+                    continue;
                 }
             }
+            for (const attributeName of attributeNames) {
+                let update: PartUpdater;
+                let strings: Array<string>;
+
+                let name = attributeName;
+                const attributeValue = element.getAttribute(attributeName);
+                if (! attributeValue) {
+                    continue;
+                }
+                if (attributeName.endsWith("$lit$")) {
+                    // this attribute has a lit marker and an associated value
+                    name = attributeName.replace(/[$]lit[$]$/, "")
+
+                    strings = attributeValue.split(marker)
+                    let startIndex = ++valueIndex
+                    let endIndex = valueIndex + strings.length - 2
+                    valueIndex = endIndex
+
+                    update = (model: any, _handlers: TemplateHandlers, _renderers: Renderers) => {
+                        // endIndex is exclusive
+                        return model.values.slice(startIndex, endIndex + 1)
+                    }
+                } else {
+                    if (attributeValue.startsWith("?")) {
+                        strings = ['', '']
+                        update = createAttributeBinder(attributeName, attributeValue)
+                    } else {
+                        // TODO: use alternative to negative lookbehind
+                        // (but it's so convenient!)
+                        const splitValue = attributeValue.split(
+                            /(?<!\\){{(.*?)(?:(?<!\\)}})/g
+                        );
+                        if (splitValue.length === 1) {
+                            continue;
+                        }
+
+                        strings = [splitValue[0]];
+                        const exprs: Array<Expression> = [];
+                        for (let i = 1; i < splitValue.length; i += 2) {
+                            const exprText = splitValue[i];
+                            exprs.push(parse(exprText, astFactory) as Expression);
+                            strings.push(splitValue[i + 1]);
+                        }
+                        update = (
+                            model: any,
+                            _handlers: TemplateHandlers,
+                            _renderers: Renderers
+                        ) => {
+                            return exprs.map((expr) => expr.evaluate(model));
+                        }
+                    }
+                }
+
+                element.removeAttribute(attributeName);
+
+                let ctor = AttributePart;
+                const prefix = attributeName[0];
+                if (prefix === '.') {
+                    name = toCamelCase(attributeName.substring(1));
+                    ctor = PropertyPart;
+                } else if (prefix === '?') {
+                    name = attributeName.substring(1);
+                    ctor = BooleanAttributePart;
+                } else if (prefix === '@') {
+                    name = toCamelCase(attributeName.substring(1));
+                    ctor = EventPart;
+                }
+
+                litTemplate.parts.push({
+                    type: 1, // attribute binding
+                    index: nodeIndex,
+                    name,
+                    strings,
+                    ctor,
+                    update,
+                });
+            }
         } else if (node.nodeType === Node.COMMENT_NODE) {
+            nodeIndex++;
             const text = (node as CharacterData).textContent!
             if (text.startsWith(nodeMarker)) {
                 let theIndex = ++valueIndex
                 litTemplate.parts.push({
                     type: 2,
-                    index: ++nodeIndex,
+                    index: nodeIndex,
                     update: (model: unknown, _handlers: TemplateHandlers) => {
                         return (model as any).values[theIndex]
                     }
