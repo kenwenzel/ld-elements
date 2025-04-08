@@ -22,6 +22,7 @@ describe('lit-rdfa', () => {
     const values: Array<any> = []
     const templateHtml = toHtml(template, values)
     const el = document.createElement("template")
+    el.setAttribute("type", "rdfa")
     el.innerHTML = templateHtml[0] as unknown as string
 
     // test if RDF is correctly exctracted
@@ -57,14 +58,19 @@ describe('lit-rdfa', () => {
     ];
     assert.sameMembers(quads.map((q) => q.toString()), expected);
 
-    model.bindings = [...model.bindings, { "creator": { value: "http://example.org/creator_2" }, "name": { value: "Creator 2" } }];
+    model.bindings = [...model.bindings, 
+      { "creator": { value: "http://example.org/creator_2" }, "name": { value: "Creator 2" } },
+      { "creator": { value: "http://example.org/creator_2" }, "name": { value: "Creator 2 second name" } }
+    ];
 
     renderLit(litTemplate(model), container);
+
+    console.log(container.innerHTML)
 
     // test if expected nodes exist
     assert.sameMembers(
       Array.from(container.querySelectorAll('[property="foaf:name"]')).map(e => e.textContent),
-      ["Creator 1", "Creator 2"]
+      ["Creator 1", "Creator 2", "Creator 2 second name"]
     );
 
     p = new RDFaToSparqlParser(container, 'http://example.org/')
@@ -74,7 +80,8 @@ describe('lit-rdfa', () => {
       '<http://example.org/photo1.jpg> <http://purl.org/dc/elements/1.1/creator> <http://example.org/creator_1>',
       '<http://example.org/creator_1> <http://xmlns.com/foaf/0.1/name> "Creator 1"^^<http://www.w3.org/2001/XMLSchema#string>',
       '<http://example.org/photo1.jpg> <http://purl.org/dc/elements/1.1/creator> <http://example.org/creator_2>',
-      '<http://example.org/creator_2> <http://xmlns.com/foaf/0.1/name> "Creator 2"^^<http://www.w3.org/2001/XMLSchema#string>'
+      '<http://example.org/creator_2> <http://xmlns.com/foaf/0.1/name> "Creator 2"^^<http://www.w3.org/2001/XMLSchema#string>',
+      '<http://example.org/creator_2> <http://xmlns.com/foaf/0.1/name> "Creator 2 second name"^^<http://www.w3.org/2001/XMLSchema#string>'
     ];
     assert.sameMembers(quads.map((q) => q.toString()), expected);
   });

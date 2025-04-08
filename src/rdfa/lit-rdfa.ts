@@ -3,6 +3,7 @@ import { _$LH } from 'lit-html/private-ssr-support.js';
 
 import { EvalAstFactory, parse, Parser } from '@heximal/expressions';
 import type { Expression, Scope } from '@heximal/expressions/lib/eval';
+import { defaultHandlers, Renderers, TemplateFunction, TemplateHandler, TemplateHandlers } from '@heximal/templates';
 
 const getTemplateHtml = _$LH.getTemplateHtml
 
@@ -81,55 +82,6 @@ const getSingleValue = (s: string, model: any) => {
     return ast?.evaluate(model);
 };
 
-export interface TemplateFunction {
-    (model: object): unknown;
-}
-
-/**
- * A Renderer is responsible for rendering a block call, like
- * <template name="foo">
- */
-// TODO: rename to BlockRenderer?
-export interface Renderer {
-    (model: any, handlers: TemplateHandlers, renderers: Renderers): unknown;
-}
-
-export interface Renderers {
-    [name: string]: Renderer;
-}
-
-/**
- * A TemplateHandlers is responsible for rendering control flow like
- * <template type="if" if="{{x}}">
- */
-export type TemplateHandler = (
-    template: Element,
-    model: object,
-    handlers: TemplateHandlers,
-    renderers: Renderers,
-    values?: Array<unknown>,
-    valueIndex?: number
-) => unknown;
-
-export interface TemplateHandlers {
-    [name: string]: TemplateHandler;
-}
-
-export const ifHandler: TemplateHandler = (
-    template: Element,
-    model: object,
-    handlers: TemplateHandlers,
-    renderers: Renderers,
-    values: Array<unknown> = [],
-    valueIndex: number = -1
-) => {
-    const ifAttribute = template.getAttribute('if');
-    if (ifAttribute !== null && getSingleValue(ifAttribute, model)) {
-        return evaluateTemplate(template, model, handlers, renderers);
-    }
-    return undefined;
-};
-
 /**
  * Groups elements of an array by a given key function.
  *
@@ -157,7 +109,7 @@ type BindingInfo = {
     attributes: string[]
 }
 
-const findTemplateVars = (template: Element): Map<string, BindingInfo> => {
+function findTemplateVars(template: Element): Map<string, BindingInfo> {
     const attributeNames = template.getAttributeNames();
     const bindings = attributeNames.reduce((prev, name) => {
         const value = template.getAttribute(name)!
@@ -176,14 +128,13 @@ const findTemplateVars = (template: Element): Map<string, BindingInfo> => {
 }
 
 const bindHandler: TemplateHandler = (
-    template: Element,
+    template: HTMLTemplateElement,
     model: any,
     handlers: TemplateHandlers,
-    renderers: Renderers,
-    values: Array<unknown> = [],
-    valueIndex: number = -1
+    renderers: Renderers
 ) => {
-    const templateVars = findTemplateVars(template)
+    const element = template.content.firstElementChild!
+    const templateVars = findTemplateVars(element)
     // group results by binding combinations
     // {
     //   "s": { "type": "uri" , "value": "http://example.org/someThing" } ,
@@ -202,7 +153,7 @@ const bindHandler: TemplateHandler = (
         return key
     })
 
-    const litTemplate = getLitTemplate(template, valueIndex);
+    const litTemplate = getLitTemplate(template);
 
     let index = -1;
     const result = [];
@@ -236,51 +187,6 @@ const bindHandler: TemplateHandler = (
     return result.length > 0 ? result : nothing;
 };
 
-export const repeatHandler: TemplateHandler = (
-    template: Element,
-    model: any,
-    handlers: TemplateHandlers,
-    renderers: Renderers,
-    values: Array<unknown> = [],
-    valueIndex: number = -1
-) => {
-    const repeatAttribute = template.getAttribute('repeat');
-    if (repeatAttribute !== null) {
-        const items = getSingleValue(repeatAttribute, model);
-        if (!items[Symbol.iterator]) {
-            return nothing;
-        }
-        const litTemplate = getLitTemplate(template, valueIndex);
-
-        let index = -1;
-        const result = [];
-        for (const item of items) {
-            index++;
-            const itemModel = Object.create(model);
-            itemModel.item = item;
-            itemModel.index = index;
-            itemModel['this'] = model['this'] ?? model;
-
-            const values = litTemplate.parts.map((part) =>
-                part.update(itemModel, handlers, renderers)
-            );
-            const templateResult: CompiledTemplateResult = {
-                _$litType$: litTemplate,
-                values,
-            };
-            result.push(templateResult);
-        }
-        return result;
-    }
-    return undefined;
-};
-
-
-export const defaultHandlers = <TemplateHandlers>{
-    if: ifHandler,
-    repeat: repeatHandler,
-};
-
 /**
  * @returns {Function} a template function of the form (model) => TemplateResult
  */
@@ -290,7 +196,7 @@ export const prepareTemplate = (
     renderers: Renderers = {},
     superTemplate?: HTMLTemplateElement
 ): TemplateFunction => {
-    const litTemplate = getLitTemplate(template, -1);
+    const litTemplate = getLitTemplate(template);
     const templateRenderers = litTemplate.renderers;
     if (superTemplate) {
         // TODO how to combine values and super template?
@@ -357,11 +263,6 @@ export const prepareTemplate = (
     return (model) => evaluateTemplate(template, model, handlers, renderers);
 };
 
-export interface RenderOptions {
-    renderers?: Renderers;
-    extends?: HTMLTemplateElement;
-}
-
 /**
  * Renders a template element containing a Stampino template.
  *
@@ -393,14 +294,12 @@ export const render = (
  * @returns
  */
 export const evaluateTemplate = (
-    template: Element,
+    template: HTMLTemplateElement,
     model: any,
     handlers: TemplateHandlers = defaultHandlers,
-    renderers: Renderers = {},
-    values: Array<unknown> = [],
-    valueIndex: number = -1
+    renderers: Renderers = {}
 ) => {
-    const litTemplate = getLitTemplate(template, valueIndex);
+    const litTemplate = getLitTemplate(template);
     const resultValues: Array<unknown> = [];
     for (const part of litTemplate.parts) {
         const value = part.update(model, handlers, renderers);
@@ -436,17 +335,6 @@ interface ExtendedTemplate extends CompiledTemplate {
 
 const litTemplateCache = new Map<Element, ExtendedTemplate>();
 
-export const getLitTemplate = (
-    template: Element,
-    valueIndex: number = -1
-): ExtendedTemplate => {
-    let litTemplate = litTemplateCache.get(template);
-    if (litTemplate === undefined) {
-        litTemplateCache.set(template, (litTemplate = makeLitTemplate(template, valueIndex)));
-    }
-    return litTemplate;
-};
-
 const createAttributeBinder = (attributeName: string, value: string): PartUpdater => {
     // this is an attribute that needs a binding
     const optional = value.startsWith("??") || value?.startsWith("?$")
@@ -456,43 +344,49 @@ const createAttributeBinder = (attributeName: string, value: string): PartUpdate
     }
 }
 
-const makeLitTemplate = (
-    template: Element,
-    valueIndex: number = -1
+const bindingRegex = /(?<!\\){{(.*?)(?:(?<!\\)}})/g;
+
+const hasEscapedBindingMarkers = (s: string) => /(?:\\{{)|(?:\\}})/g.test(s);
+
+const unescapeBindingMarkers = (s: string) => s.replace(/\\{{/g, '{{').replace(/\\}}/g, '}}');
+
+export const getLitTemplate = (
+    template: HTMLTemplateElement,
 ): ExtendedTemplate => {
-    var templateElement = template.cloneNode(true) as Element
-    if (templateElement.tagName != "TEMPLATE") {
-        // wrap element in template tag
-        const wrapper = document.createElement("template") as HTMLTemplateElement
-        wrapper.content.appendChild(templateElement)
-        templateElement = wrapper
+    let litTemplate = litTemplateCache.get(template);
+    if (litTemplate === undefined) {
+        litTemplateCache.set(template, (litTemplate = makeLitTemplate(template)));
     }
+    return litTemplate;
+};
+
+const makeLitTemplate = (template: HTMLTemplateElement): ExtendedTemplate => {
     const litTemplate: ExtendedTemplate = {
         h: undefined as unknown as TemplateStringsArray,
-        el: templateElement as HTMLTemplateElement,
+        el: template.cloneNode(true) as HTMLTemplateElement,
         parts: [],
         renderers: {},
     };
     const walker = document.createTreeWalker(
         litTemplate.el!.content,
-        NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT | NodeFilter.SHOW_COMMENT
+        NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT | NodeFilter.SHOW_COMMENT,
     );
     let node: Node | null = walker.currentNode;
     let nodeIndex = -1;
     const elementsToRemove = [];
 
     while ((node = walker.nextNode()) !== null) {
-        if (node.nodeType === Node.ELEMENT_NODE) {
+        if (node.nodeType === Node.COMMENT_NODE) {
+            nodeIndex++;
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
             nodeIndex++;
             const element = node as Element;
-
             const attributeNames = element.getAttributeNames();
-            let skipRdfa = !!element.getAttribute("_skipRdfa")
-            if (skipRdfa) {
-                element.removeAttribute("_skipRdfa")
+            const skip = element.hasAttribute("_skipRdfa");
+            if (skip) {
+                element.removeAttribute("_skipRdfa");
             }
-
-            if (!skipRdfa && attributeNames.find(name => {
+            if (!skip && attributeNames.find(name => {
                 if (name.endsWith("$lit$")) {
                     // ignore attributes bound by expressions
                     return false
@@ -501,20 +395,23 @@ const makeLitTemplate = (
                     return value?.startsWith("?") || value?.startsWith("$")
                 }
             }) !== undefined) {
+                // very important: go to next sibling before element is removed by re-parenting
+                const hasSibling = walker.nextSibling();
+
+                element.setAttribute("_skipRdfa", "true");
                 element.parentNode!.insertBefore(document.createComment(''), element);
-                elementsToRemove.push(element);
-                // ensure that bind handler is not created in next recursive invocation
-                element.setAttribute("_skipRdfa", "true")
+                // wrap element by template which is rendered using the bind handler
+                const bindTemplate = document.createElement('TEMPLATE') as HTMLTemplateElement;
+                bindTemplate.setAttribute("type", "rdfa-bind");
+                bindTemplate.content.appendChild(element);
 
                 // this node requires bindings
                 let update = (model: any, handlers: TemplateHandlers, renderers: Renderers) => {
                     return bindHandler(
-                        element as HTMLElement,
+                        bindTemplate,
                         model,
                         handlers,
-                        renderers,
-                        (model as any).values,
-                        valueIndex
+                        renderers
                     );
                 };
                 litTemplate.parts.push({
@@ -524,7 +421,7 @@ const makeLitTemplate = (
                 });
 
                 // either go to next sibling or stop processing
-                if (! walker.nextSibling()) {
+                if (! hasSibling) {
                     break;
                 }
                 // skip attribute bindings
@@ -532,18 +429,39 @@ const makeLitTemplate = (
             } else if (element.tagName === 'TEMPLATE') {
                 const type = element.getAttribute('type');
                 const name = element.getAttribute('name');
+                const call = element.getAttribute('call');
 
-                if (type !== null || name !== null) {
+                if (call !== null || type !== null || name !== null) {
                     element.parentNode!.insertBefore(document.createComment(''), element);
                     elementsToRemove.push(element);
-
                     let update: PartUpdater;
-                    if (type !== null) {
+
+                    if (call !== null) {
+                        // This is a sub-template call, like <template call="foo">
+                        const templateName = call.trim();
+                        const templateNameIsExpression =
+                            templateName.startsWith('{{') && templateName.endsWith('}}');
+
+                        update = (
+                            model: object,
+                            handlers: TemplateHandlers,
+                            renderers: Renderers,
+                        ) => {
+                            const dataAttr = element.getAttribute('data');
+                            const data =
+                                dataAttr === null ? undefined : getSingleValue(dataAttr, model);
+
+                            const renderer = templateNameIsExpression
+                                ? getSingleValue(templateName, model)
+                                : renderers[call];
+                            return renderer?.(data, handlers, renderers);
+                        };
+                    } else if (type !== null) {
                         // This is a control-flow call, like if/repeat
                         update = (
                             model: object,
                             handlers: TemplateHandlers,
-                            renderers: Renderers
+                            renderers: Renderers,
                         ) => {
                             const handler = handlers[type];
                             return handler?.(
@@ -551,8 +469,6 @@ const makeLitTemplate = (
                                 model,
                                 handlers,
                                 renderers,
-                                (model as any).values,
-                                valueIndex
                             );
                         };
                     } else {
@@ -561,7 +477,7 @@ const makeLitTemplate = (
                             litTemplate.renderers['super'] = (
                                 model: any,
                                 handlers: TemplateHandlers,
-                                renderers: Renderers
+                                renderers: Renderers,
                             ) => {
                                 // Instead of rendering this block, delegate to a passed in
                                 // 'super' renderer which will actually render the late-bound
@@ -569,7 +485,7 @@ const makeLitTemplate = (
                                 // this block for block overrides.
                                 const superRenderer = renderers['super'];
                                 const superCallTemplate = getLitTemplate(
-                                    element as HTMLTemplateElement
+                                    element as HTMLTemplateElement,
                                 );
                                 renderers = {
                                     ...renderers,
@@ -582,13 +498,13 @@ const makeLitTemplate = (
                             litTemplate.renderers[name!] = (
                                 model: any,
                                 handlers: TemplateHandlers,
-                                renderers: Renderers
+                                renderers: Renderers,
                             ) => {
                                 return evaluateTemplate(
                                     element as HTMLTemplateElement,
                                     model,
                                     handlers,
-                                    renderers
+                                    renderers,
                                 );
                             };
                         }
@@ -598,7 +514,7 @@ const makeLitTemplate = (
                         update = (
                             model: object,
                             handlers: TemplateHandlers,
-                            renderers: Renderers
+                            renderers: Renderers,
                         ) => {
                             const renderer = renderers[name!];
                             return renderer?.(model, handlers, renderers);
@@ -609,7 +525,8 @@ const makeLitTemplate = (
                         index: nodeIndex,
                         update,
                     });
-                    // skip attribute bindings
+                    // Template with call, type, or name attributes are removed from the
+                    // DOM, so they can't have attribute bindings.
                     continue;
                 }
             }
@@ -619,50 +536,40 @@ const makeLitTemplate = (
 
                 let name = attributeName;
                 const attributeValue = element.getAttribute(attributeName);
-                if (! attributeValue) {
+                if (!attributeValue) {
                     continue;
                 }
-                if (attributeName.endsWith("$lit$")) {
-                    // this attribute has a lit marker and an associated value
-                    name = attributeName.replace(/[$]lit[$]$/, "")
-
-                    strings = attributeValue.split(marker)
-                    let startIndex = ++valueIndex
-                    let endIndex = valueIndex + strings.length - 2
-                    valueIndex = endIndex
-
-                    update = (model: any, _handlers: TemplateHandlers, _renderers: Renderers) => {
-                        // endIndex is exclusive
-                        return model.values.slice(startIndex, endIndex + 1)
-                    }
+                if (attributeValue.startsWith("?")) {
+                    strings = ['', '']
+                    update = createAttributeBinder(attributeName, attributeValue)
                 } else {
-                    if (attributeValue.startsWith("?")) {
-                        strings = ['', '']
-                        update = createAttributeBinder(attributeName, attributeValue)
-                    } else {
-                        // TODO: use alternative to negative lookbehind
-                        // (but it's so convenient!)
-                        const splitValue = attributeValue.split(
-                            /(?<!\\){{(.*?)(?:(?<!\\)}})/g
-                        );
-                        if (splitValue.length === 1) {
-                            continue;
+                    // TODO: use alternative to negative lookbehind
+                    // (but it's so convenient!)
+                    const splitValue = attributeValue.split(bindingRegex);
+                    if (splitValue.length === 1) {
+                        if (hasEscapedBindingMarkers(attributeValue)) {
+                            element.setAttribute(
+                                attributeName,
+                                unescapeBindingMarkers(attributeValue),
+                            );
                         }
+                        continue;
+                    }
 
-                        strings = [splitValue[0]];
-                        const exprs: Array<Expression> = [];
-                        for (let i = 1; i < splitValue.length; i += 2) {
-                            const exprText = splitValue[i];
-                            exprs.push(parse(exprText, astFactory) as Expression);
-                            strings.push(splitValue[i + 1]);
-                        }
-                        update = (
-                            model: any,
-                            _handlers: TemplateHandlers,
-                            _renderers: Renderers
-                        ) => {
-                            return exprs.map((expr) => expr.evaluate(model));
-                        }
+                    strings = [unescapeBindingMarkers(splitValue[0])];
+                    const exprs: Array<Expression> = [];
+                    for (let i = 1; i < splitValue.length; i += 2) {
+                        const exprText = splitValue[i];
+                        exprs.push(parse(exprText, astFactory) as Expression);
+                        strings.push(unescapeBindingMarkers(splitValue[i + 1]));
+                    }
+
+                    update = (
+                        model: any,
+                        _handlers: TemplateHandlers,
+                        _renderers: Renderers
+                    ) => {
+                        return exprs.map((expr) => expr.evaluate(model));
                     }
                 }
 
@@ -690,28 +597,14 @@ const makeLitTemplate = (
                     update,
                 });
             }
-        } else if (node.nodeType === Node.COMMENT_NODE) {
-            nodeIndex++;
-            const text = (node as CharacterData).textContent!
-            if (text.startsWith(nodeMarker)) {
-                let theIndex = ++valueIndex
-                litTemplate.parts.push({
-                    type: 2,
-                    index: nodeIndex,
-                    update: (model: unknown, _handlers: TemplateHandlers) => {
-                        return (model as any).values[theIndex]
-                    }
-                });
-            }
         } else if (node.nodeType === Node.TEXT_NODE) {
-            const textNode = node as Text;
+            let textNode = node as Text;
             const text = textNode.textContent!;
-            const strings = text.split(/(?<!\\){{(.*?)(?:(?<!\\)}})/g);
+            const strings = text.split(bindingRegex);
             if (strings.length > 1) {
-                textNode.textContent = strings[0].replace('\\{{', '{{');
-            } else {
-                // TODO: do this better
-                textNode.textContent = text.replace('\\{{', '{{');
+                textNode.textContent = unescapeBindingMarkers(strings[0]);
+            } else if (hasEscapedBindingMarkers(text)) {
+                textNode.textContent = unescapeBindingMarkers(text);
             }
             for (let i = 1; i < strings.length; i += 2) {
                 const exprText = strings[i];
@@ -719,14 +612,16 @@ const makeLitTemplate = (
                 litTemplate.parts.push({
                     type: 2,
                     index: ++nodeIndex,
-                    update: (model: unknown, _handlers: TemplateHandlers) => expr.evaluate(model as Scope),
+                    update: (model: unknown, _handlers: TemplateHandlers) =>
+                        expr.evaluate(model as Scope),
                 });
                 const newTextNode = new Text(strings[i + 1].replace('\\{{', '{{'));
                 textNode.parentNode!.insertBefore(newTextNode, textNode.nextSibling);
                 textNode.parentNode!.insertBefore(
                     document.createComment(''),
-                    textNode.nextSibling
+                    textNode.nextSibling,
                 );
+                textNode = newTextNode;
                 // This TreeWalker isn't configured to walk comment nodes, but this
                 // node will be returned next time through the loop. This is the easiest
                 // way to get the walker to proceed to the next successor after the
