@@ -1,14 +1,17 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Wikidata examples</title>
-    <link rel="stylesheet" href="../src/index.css" />
-    <script type="module" src="../src/components/ld-rdfa/lda-rdfa.ts"></script>
-  </head>
-  <body>
-    <!-- Renders cats described in Wikidata -->
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wikidata examples</title>
+  <link rel="stylesheet" href="../src/index.css" />
+  <script type="module" src="../src/components/ld-rdfa/ld-rdfa.ts"></script>
+</head>
+
+<body>
+  <!-- Renders cats described in Wikidata -->
+  <ld-rdfa endpoint="https://query.wikidata.org/sparql">
     <template id="cats">
       <style>
         .images {
@@ -16,6 +19,7 @@
           gap: 20px;
           align-items: center;
         }
+
         img {
           max-width: 400px;
         }
@@ -25,7 +29,6 @@
             wdt: http://www.wikidata.org/prop/direct/
             rdfs: http://www.w3.org/2000/01/rdf-schema#">
         <span rel="wdt:P31" resource="wd:Q146"></span>
-
         <a href="?cat">
           <span about="?cat" property="rdfs:label" content="?l" data-filter="lang(?l) = 'en'">{{ l }}</span>
         </a>
@@ -35,8 +38,7 @@
         </div>
       </div>
     </template>
+  </ld-rdfa>
+</body>
 
-    <!-- use template above to execute query and render the cats -->
-    <ld-rdfa endpoint="https://query.wikidata.org/sparql" template="#cats"></ld-rdfa>
-  </body>
 </html>

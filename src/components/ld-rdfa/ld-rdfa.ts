@@ -1,4 +1,4 @@
-import { LitElement, css, nothing } from 'lit';
+import { LitElement, css, html, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { until } from 'lit/directives/until.js';
 import { prepareTemplate } from '../../rdfa/lit-rdfa';
@@ -40,11 +40,16 @@ export class LdRdfaElement extends LitElement {
   }
 
   render() {
-    if (!this.template || !this.endpoint) {
-      return nothing;
+    let style : HTMLStyleElement | undefined = undefined;
+    let templateElement : HTMLTemplateElement | undefined = undefined;
+    if (this.template) {
+      templateElement = document.querySelector(this.template) as HTMLTemplateElement | undefined;
+    } else {
+      style = this.querySelector('style') as HTMLStyleElement | undefined;
+      templateElement = this.querySelector('template') as HTMLTemplateElement | undefined;
     }
-    const templateElement = document.querySelector(this.template);
-    if (!templateElement) {
+
+    if (!templateElement || !this.endpoint) {
       return nothing;
     }
 
@@ -54,11 +59,11 @@ export class LdRdfaElement extends LitElement {
     const litTemplate = prepareTemplate(templateElement as HTMLTemplateElement);
 
     const result = this.runSparqlQuery(this.endpoint, query).then(bindings => {
-      const model = { bindings: bindings };
+      const model = { params: new URLSearchParams(window.location.search), bindings: bindings };
       return litTemplate(model);
     })
 
-    return until(result);
+    return html`${style}${until(result)}`;
   }
 
   static styles = css``
