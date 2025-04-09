@@ -53,7 +53,7 @@ export class LdRdfaElement extends LitElement {
       return nothing;
     }
 
-    const p = new RDFaToSparqlParser((templateElement as HTMLTemplateElement).content.querySelector('*:not(style)')!, 'http://example.org/')
+    const p = new RDFaToSparqlParser((templateElement as HTMLTemplateElement).content.querySelector('*:not(style)')!, window.location.href)
     const query = p.getQuery();
 
     const litTemplate = prepareTemplate(templateElement as HTMLTemplateElement);
