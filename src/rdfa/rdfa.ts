@@ -335,7 +335,7 @@ export class RDFaParser extends CurieSupport {
 
     var childArcs: Array<Quad> = [];
     if (!xmlobj) {
-      const newChildren: Array<Element> = [];
+      const newChildren = new Map<Element, Element>();
       var changedChild = false;
       childArcs = this.walkChildren(newE, (c) => {
         const [newC, quads] = skip
@@ -351,23 +351,29 @@ export class RDFaParser extends CurieSupport {
             s
           );
 
-        changedChild = changedChild || newC !== c;
-        newChildren.push(newC);
+        if (newC !== c) {
+          newChildren.set(c, newC);
+        }
         return quads;
       });
 
-      if (changedChild) {
+      if (newChildren.size) {
         const cloned = <Element>newE.cloneNode(false);
-        for (var i = 0; i < newE.children.length; i++) {
-          const oldChild = newE.children[i];
-          const newChild = newChildren[i];
-          if (oldChild === newChild) {
-            // old node needs to be cloned
-            cloned.appendChild(oldChild.cloneNode(true));
+        for (var i = 0; i < newE.childNodes.length; i++) {
+          const oldChild = newE.childNodes[i];
+          if (oldChild.nodeType == Node.ELEMENT_NODE) {
+            const newChild = newChildren.get(oldChild as Element);
+            if (!newChild || oldChild === newChild) {
+              // old node needs to be cloned
+              cloned.append(oldChild.cloneNode(true));
+            } else {
+              cloned.append(newChild);
+            }
           } else {
-            cloned.appendChild(newChild);
+            cloned.append(oldChild.cloneNode(true));
           }
         }
+        newE = cloned;
       }
     }
 

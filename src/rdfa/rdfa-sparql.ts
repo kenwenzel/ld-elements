@@ -250,7 +250,7 @@ export class RDFaToSparqlParser extends RDFaParser {
       this.sparql.push('{\n' + innerQuery + '}\n');
       this.dedent();
 
-      return [e1, []];
+      return [subSelectParser.getElement()!, []];
     } else {
       const self = this;
       return this.doMaybeStrict(e, () => {
