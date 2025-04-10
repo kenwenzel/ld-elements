@@ -18,11 +18,20 @@ export class LdRdfaElement extends HeximalElement {
   @property()
   endpoint?: string;
 
+  @property()
+  paginate?: string;
+
+  @property({ type: Number })
+  perPage: number = 20;
+
   styleTemplate?: TemplateResult;
 
   litTemplate?: TemplateFunction;
 
-  query?: string;
+  parser?: RDFaToSparqlParser;
+
+  offset = 0;
+  count?: number;
 
   async runSparqlQuery(sparqlEndpointUrl: string, sparqlQuery: string): Promise<any[]> {
     try {
@@ -48,6 +57,17 @@ export class LdRdfaElement extends HeximalElement {
     }
   }
 
+  constructor() {
+    super();
+    this.addEventListener('page-change', (e) => {
+      const paginator = this.shadowRoot?.querySelector('ld-paginator');
+      if (paginator) {
+        this.offset = paginator.page * this.perPage;
+        this.requestUpdate();
+      }
+    });
+  }
+
   connectedCallback(): void {
     super.connectedCallback();
     let templateElement: HTMLTemplateElement | undefined = undefined;
@@ -61,31 +81,59 @@ export class LdRdfaElement extends HeximalElement {
       templateElement = this.querySelector('template') as HTMLTemplateElement | undefined;
     }
     if (templateElement) {
-      const p = new RDFaToSparqlParser((templateElement as HTMLTemplateElement).content.querySelector('*:not(style)')!, window.location.href);
+      this.parser = new RDFaToSparqlParser((templateElement as HTMLTemplateElement).content.querySelector('*:not(style)')!, window.location.href);
 
       const newTemplate = document.createElement('template') as HTMLTemplateElement;
-      newTemplate.content.appendChild(p.getElement()!);
+      newTemplate.content.appendChild(this.parser.getElement()!);
+
+      const paginator = newTemplate.content.querySelector('ld-paginator');
+      if (paginator) {
+        paginator.setAttribute("count", "{{ paginator.count }}");
+        paginator.setAttribute("perPage", "{{ paginator.perPage }}");
+      }
 
       this.litTemplate = prepareTemplate(newTemplate);
-
-      this.query = p.getQuery();
     }
   }
 
   render() {
-    if (!this.litTemplate || !this.endpoint || !this.query) {
+    if (!this.litTemplate || !this.endpoint || !this.parser) {
       return nothing;
     }
 
     let scope = getScope(this) || {};
-    let q = replaceExpressions(this.query!, scope);
 
-    const result = this.runSparqlQuery(this.endpoint, q).then(bindings => {
-      const model = Object.create(scope);
-      model.params = new URLSearchParams(window.location.search);
-      model.bindings = bindings;
-      return this.litTemplate!(model);
-    })
+    let result: Promise<any> = Promise.resolve(true);
+    if (this.paginate) {
+      const paginatedVar = this.paginate.replace(/[?$]/g, "");
+      if (this.count === undefined) {
+        const countQuery = this.parser.getCountQuery(paginatedVar);
+        const parameterizedCountQuery = replaceExpressions(countQuery, scope);
+        result = result.then(() => this.runSparqlQuery(this.endpoint!, parameterizedCountQuery).then(bindings => {
+          this.count = bindings[0]?.count?.value || 0;
+        }));
+      }
+      result = result.then(async () => {
+        const paginatedQuery = this.parser!.getPaginatedQuery(paginatedVar, this.offset, this.perPage);
+        const parameterizedPaginatedQuery = replaceExpressions(paginatedQuery, scope);
+        const bindings = await this.runSparqlQuery(this.endpoint!, parameterizedPaginatedQuery);
+
+        const model = Object.create(scope);
+        model.params = new URLSearchParams(window.location.search);
+        model.bindings = bindings;
+        model.paginator = { count: this.count, perPage: this.perPage };
+        return this.litTemplate!(model);
+      });
+    } else {
+      const query = this.parser.getQuery();
+      let q = replaceExpressions(query, scope);
+      result = this.runSparqlQuery(this.endpoint, q).then(bindings => {
+        const model = Object.create(scope);
+        model.params = new URLSearchParams(window.location.search);
+        model.bindings = bindings;
+        return this.litTemplate!(model);
+      });
+    }
 
     return html`${this.styleTemplate}${until(result)}`;
   }

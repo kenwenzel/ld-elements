@@ -7,6 +7,7 @@
   <title>Wikidata examples</title>
   <link rel="stylesheet" href="../src/index.css" />
   <script type="module" src="../src/components/ld-rdfa/ld-rdfa.ts"></script>
+  <script type="module" src="../src/components/ld-paginator/ld-paginator.ts"></script>
   <script type="module">
     import { runAutoTemplates } from '@heximal/components';
     runAutoTemplates();
@@ -25,7 +26,7 @@
   </template>
 
   <!-- Renders cats described in Wikidata -->
-  <ld-rdfa endpoint="https://query.wikidata.org/sparql">
+  <ld-rdfa endpoint="https://query.wikidata.org/sparql" paginate="?cat">
     <style>
       .images {
         display: flex;
@@ -38,23 +39,27 @@
       }
     </style>
     <template id="cats">
-      <div about="?cat" prefix="
+      <div>
+        <ld-paginator></ld-paginator>
+
+        <div about="?cat" prefix="
             wd: http://www.wikidata.org/entity/
             wdt: http://www.wikidata.org/prop/direct/
-            rdfs: http://www.w3.org/2000/01/rdf-schema#" data-pattern="hint:Query hint:optimizer &quot;None&quot; .">
-        <div data-select="?cat" data-limit="{{ limit }}" rel="wdt:P31" resource="wd:Q146"></div>
+            rdfs: http://www.w3.org/2000/01/rdf-schema#" data-pattern="hint:Query hint:optimizer &quot;None&quot; ." class="asc">
+          <div rel="wdt:P31" resource="wd:Q146"></div>
 
-        <a href="?cat">
-          <span about="?cat" property="rdfs:label" content="?l" data-filter="lang(?l) = '{{ lang }}'">{{ l }}</span>
-        </a>
+          <a href="?cat">
+            <span about="?cat" property="rdfs:label" content="?l" data-filter="lang(?l) = '{{ lang }}'">{{ l }}</span>
+          </a>
 
-        <div class="images">
-          <img resource="?cat" rev="wdt:P18" src="?img" />
-        </div>
+          <div class="images">
+            <img resource="?cat" rev="wdt:P18" src="?img" />
+          </div>
 
-        <!--div class="properties optional">
+          <!--div class="properties optional">
           <div rel="?p" resource="?o" data-filter="!isLiteral(?o)">{{ p }} {{ o }}</div>
         </div-->
+        </div>
       </div>
     </template>
   </ld-rdfa>
