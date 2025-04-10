@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@heximal/components": "^0.1.5",
+    "@heximal/element": "^0.1.5",
     "@heximal/expressions": "^0.1.5",
     "@heximal/templates": "^0.1.5",
     "lit": "^3.2.1"
