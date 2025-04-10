@@ -10,6 +10,9 @@
 </head>
 
 <body>
+  <h-var name="lang" value="en"></h-var>
+  <h-var name="limit" value="3"></h-var>
+
   <!-- Renders cats described in Wikidata -->
   <ld-rdfa endpoint="https://query.wikidata.org/sparql">
     <template id="cats">
@@ -27,10 +30,10 @@
       <div about="?cat" prefix="
             wd: http://www.wikidata.org/entity/
             wdt: http://www.wikidata.org/prop/direct/
-            rdfs: http://www.w3.org/2000/01/rdf-schema#">
+            rdfs: http://www.w3.org/2000/01/rdf-schema#" data-limit="{{ limit }}">
         <span rel="wdt:P31" resource="wd:Q146"></span>
         <a href="?cat">
-          <span about="?cat" property="rdfs:label" content="?l" data-filter="lang(?l) = 'en'">{{ l }}</span>
+          <span about="?cat" property="rdfs:label" content="?l" data-filter="lang(?l) = '{{ lang }}'">{{ l }}</span>
         </a>
 
         <div class="images">

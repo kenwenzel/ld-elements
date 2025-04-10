@@ -1,16 +1,17 @@
-import { CompiledTemplate, CompiledTemplateResult, html, nothing, render as renderLit, TemplateInstance, TemplateResult } from 'lit-html';
+import { CompiledTemplate, CompiledTemplateResult, nothing, render as renderLit, TemplateInstance, TemplateResult } from 'lit-html';
 import { _$LH } from 'lit-html/private-ssr-support.js';
 
 import { EvalAstFactory, parse, Parser } from '@heximal/expressions';
 import type { Expression, Scope } from '@heximal/expressions/lib/eval';
 import { defaultHandlers, Renderers, TemplateFunction, TemplateHandler, TemplateHandlers } from '@heximal/templates';
 
+const bindingRegex = /(?<!\\){{(.*?)(?:(?<!\\)}})/g;
+
+const hasEscapedBindingMarkers = (s: string) => /(?:\\{{)|(?:\\}})/g.test(s);
+
+const unescapeBindingMarkers = (s: string) => s.replace(/\\{{/g, '{{').replace(/\\}}/g, '}}');
+
 const getTemplateHtml = _$LH.getTemplateHtml
-
-const marker = getTemplateHtml(html`<p a=${1}>`.strings, 1)[0].toString().replace(/^.*=/, "").replace(/>.*$/, "")
-const nodeMarker = "?" + marker
-
-const RDFA_RESULT = 3;
 
 export function rdfa(strings: TemplateStringsArray, ...values: unknown[]): TemplateResult<any> {
     const result = {
@@ -62,6 +63,30 @@ const expressionCache = new Map<string, Expression | undefined>();
 
 const toCamelCase = (s: string) =>
     s.replace(/-(-|\w)/g, (_, p1: string) => p1.toUpperCase());
+
+/**
+ * Replace all expression by their values within a given string.
+ * 
+ * @param s the string with expressions
+ * @param model the current model
+ * @returns string with replaced expressions
+ */
+export function replaceExpressions(s: string, model: any): string {
+    const splitValue = s.split(bindingRegex);
+    if (splitValue.length === 1) {
+        return hasEscapedBindingMarkers(s) ? unescapeBindingMarkers(s) : s;
+    }
+
+    const results = [unescapeBindingMarkers(splitValue[0])];
+    const exprs: Array<Expression> = [];
+    for (let i = 1; i < splitValue.length; i += 2) {
+        const exprText = splitValue[i];
+        results.push(getSingleValue(`{{ ${exprText} }}`, model))
+        results.push(unescapeBindingMarkers(splitValue[i + 1]));
+    }
+
+    return results.join('');
+}
 
 /**
  * Gets the value from a string that contains a delimted expression: {{ ... }}
@@ -344,12 +369,6 @@ const createAttributeBinder = (attributeName: string, value: string): PartUpdate
     }
 }
 
-const bindingRegex = /(?<!\\){{(.*?)(?:(?<!\\)}})/g;
-
-const hasEscapedBindingMarkers = (s: string) => /(?:\\{{)|(?:\\}})/g.test(s);
-
-const unescapeBindingMarkers = (s: string) => s.replace(/\\{{/g, '{{').replace(/\\}}/g, '}}');
-
 export const getLitTemplate = (
     template: HTMLTemplateElement,
 ): ExtendedTemplate => {
@@ -421,7 +440,7 @@ const makeLitTemplate = (template: HTMLTemplateElement): ExtendedTemplate => {
                 });
 
                 // either go to next sibling or stop processing
-                if (! hasSibling) {
+                if (!hasSibling) {
                     break;
                 }
                 // skip attribute bindings

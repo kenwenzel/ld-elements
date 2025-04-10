@@ -1,8 +1,9 @@
 import { LitElement, css, html, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { until } from 'lit/directives/until.js';
-import { prepareTemplate } from '../../rdfa/lit-rdfa';
+import { prepareTemplate, replaceExpressions } from '../../rdfa/lit-rdfa';
 import { RDFaToSparqlParser } from '../../rdfa/rdfa-sparql';
+import { getScope } from '@heximal/components';
 
 /**
  * Renders HTML templates with RDFa markup.
@@ -54,7 +55,8 @@ export class LdRdfaElement extends LitElement {
     }
 
     const p = new RDFaToSparqlParser((templateElement as HTMLTemplateElement).content.querySelector('*:not(style)')!, window.location.href)
-    const query = p.getQuery();
+    let query = p.getQuery();
+    query = replaceExpressions(query, getScope(this) || {});
 
     const litTemplate = prepareTemplate(templateElement as HTMLTemplateElement);
 
