@@ -21,8 +21,8 @@ export class LdRdfaElement extends HeximalElement {
   @property()
   paginate?: string;
 
-  @property({ type: Number })
-  perPage: number = 20;
+  @property({ type: Number, attribute: "page-size" })
+  pageSize: number = 20;
 
   styleTemplate?: TemplateResult;
 
@@ -62,7 +62,7 @@ export class LdRdfaElement extends HeximalElement {
     this.addEventListener('page-change', (e) => {
       const paginator = this.shadowRoot?.querySelector('ld-paginator');
       if (paginator) {
-        this.offset = paginator.page * this.perPage;
+        this.offset = paginator.page * this.pageSize;
         this.requestUpdate();
       }
     });
@@ -89,7 +89,7 @@ export class LdRdfaElement extends HeximalElement {
       const paginator = newTemplate.content.querySelector('ld-paginator');
       if (paginator) {
         paginator.setAttribute("count", "{{ paginator.count }}");
-        paginator.setAttribute("perPage", "{{ paginator.perPage }}");
+        paginator.setAttribute("page-size", "{{ paginator.pageSize }}");
       }
 
       this.litTemplate = prepareTemplate(newTemplate);
@@ -97,6 +97,7 @@ export class LdRdfaElement extends HeximalElement {
   }
 
   render() {
+    console.log("render", this.pageSize)
     if (!this.litTemplate || !this.endpoint || !this.parser) {
       return nothing;
     }
@@ -114,14 +115,14 @@ export class LdRdfaElement extends HeximalElement {
         }));
       }
       result = result.then(async () => {
-        const paginatedQuery = this.parser!.getPaginatedQuery(paginatedVar, this.offset, this.perPage);
+        const paginatedQuery = this.parser!.getPaginatedQuery(paginatedVar, this.offset, this.pageSize);
         const parameterizedPaginatedQuery = replaceExpressions(paginatedQuery, scope);
         const bindings = await this.runSparqlQuery(this.endpoint!, parameterizedPaginatedQuery);
 
         const model = Object.create(scope);
         model.params = new URLSearchParams(window.location.search);
         model.bindings = bindings;
-        model.paginator = { count: this.count, perPage: this.perPage };
+        model.paginator = { count: this.count, pageSize: this.pageSize };
         return this.litTemplate!(model);
       });
     } else {

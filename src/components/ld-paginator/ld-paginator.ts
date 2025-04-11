@@ -9,8 +9,8 @@ export class LdPaginatorElement extends LitElement {
   @property({ type: Number })
   count?: number;
 
-  @property({ type: Number })
-  perPage: number = 20;
+  @property({ type: Number, attribute: "page-size" })
+  pageSize: number = 20;
 
   @property({ type: Number })
   page: number = 0;
@@ -27,7 +27,7 @@ export class LdPaginatorElement extends LitElement {
   }
 
   render() {
-    const pages = [...Array(Math.ceil((this.count || 0) / Math.max(this.perPage, 1))).keys()];
+    const pages = [...Array(Math.ceil((this.count || 0) / Math.max(this.pageSize, 1))).keys()];
     return html`<div class="pages">
       ${pages.map(p => this.renderLink(p))}
     </div>`
