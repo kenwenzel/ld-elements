@@ -29,6 +29,7 @@ export class LdRdfaElement extends HeximalElement {
   litTemplate?: TemplateFunction;
 
   parser?: RDFaToSparqlParser;
+  baseQuery?: string;
 
   offset = 0;
   count?: number;
@@ -105,6 +106,14 @@ export class LdRdfaElement extends HeximalElement {
 
     let result: Promise<any> = Promise.resolve(true);
     if (this.paginate) {
+      // check if query patterns have been changed
+      const newBaseQuery = replaceExpressions(this.parser.getQuery(), scope);
+      if (newBaseQuery != this.baseQuery) {
+        // if query has been changed then the count needs to be recomputed
+        this.baseQuery = newBaseQuery;
+        this.count = undefined;
+      }
+
       const paginatedVar = this.paginate.replace(/[?$]/g, "");
       if (this.count === undefined) {
         const countQuery = this.parser.getCountQuery(paginatedVar);
