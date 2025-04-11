@@ -97,7 +97,6 @@ export class LdRdfaElement extends HeximalElement {
   }
 
   render() {
-    console.log("render", this.pageSize)
     if (!this.litTemplate || !this.endpoint || !this.parser) {
       return nothing;
     }
