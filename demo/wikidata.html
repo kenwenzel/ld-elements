@@ -18,10 +18,12 @@
 <body>
   <h-var name="lang" value="en"></h-var>
   <h-var name="limit" value="10"></h-var>
+  <h-var name="search" value=""></h-var>
 
   <template h-auto>
     <p>
       Items per page: <input .value="{{ limit }}" @change="{{ (e) => limit = e.target.value }}" type="number" />
+      Search: <input .value="{{ search }}" @keyup="{{ (e) => search = e.target.value }}" />
     </p>
 
     <!-- Renders cats described in Wikidata -->
@@ -48,6 +50,7 @@
 
             <a href="?cat">
               <span about="?cat" property="rdfs:label" content="?l" data-filter="lang(?l) = '{{ lang }}'">{{ l }}</span>
+              <span data-filter="{{ search ? 'regex(str(?l),\'' + search + '\', \'i\')' : 'true'}}"></span>
             </a>
 
             <div class="images">
