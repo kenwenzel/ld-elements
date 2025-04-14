@@ -1,32 +1,36 @@
 /// <reference types="vitest/config" />
 
-import { dirname, resolve } from 'node:path'
+import { dirname, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
+const srcDir = resolve(__dirname, 'src');
+const libEntryFile = resolve(__dirname, 'src/bundle/ld-elements.ts');
+const libEntryFileDir = dirname(libEntryFile);
 
 // https://vitejs.dev/config/
 export default defineConfig({
   base: '/ld-elements/',
   build: {
     cssCodeSplit: true,
-    lib: {
-      entry: resolve(__dirname, 'src/bundle/index.js'),
-      formats: ['es'],
-      name: 'LD-Elements',
-      // the proper extensions will be added
-      fileName: 'ld-elements'
-    },
     rollupOptions: {
-      // external: [/heximal/],
-      input: {
-        // do not include index.html here as it collides with name of ld-elements library above
-        // index: resolve(__dirname, 'index.html'),
-        wikidata: resolve(__dirname, 'demo/wikidata.html'),
-      },
+      input: [
+        libEntryFile,
+        resolve(__dirname, 'index.html'),
+        resolve(__dirname, 'demo/wikidata.html'),
+        resolve(__dirname, 'demo/nfdi4culture.html')
+      ],
       output: {
-        inlineDynamicImports: false
+        inlineDynamicImports: false,
+        manualChunks(id) {
+          if (id.endsWith('.ts') || id.endsWith('.js') || id.endsWith('mjs')) {
+            return 'ld-elements';
+          }
+        },
+        entryFileNames(chunkInfo) {
+          return "[name].js";
+        }
       }
     }
   },

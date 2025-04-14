@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wikidata examples</title>
+  <link rel="stylesheet" href="../src/index.css" />
+  <script type="module" src="../src/bundle/ld-elements.ts"></script>
+  <script type="module">
+    import { runAutoTemplates } from '@heximal/components';
+    runAutoTemplates();
+  </script>
+</head>
+
+<body>
+  <h-var name="limit" value="20"></h-var>
+  <h-var name="search" value=""></h-var>
+
+  <template h-auto>
+    <p>
+      Items per page: <input .value="{{ limit }}" @change="{{ (e) => limit = e.target.value }}" type="number" />
+      Search: <input .value="{{ search }}" @keyup="{{ (e) => search = e.target.value }}" />
+    </p>
+
+    <ld-rdfa endpoint="https://nfdi4culture.de/sparql" paginate="?item" page-size="{{ limit }}">
+      <style>
+        .items {
+          display: flex;
+          flex-direction: column;
+          gap: 1ex;
+        }
+
+        .properties {
+          font-size: smaller;
+          padding-left: 3ex;
+        }
+
+        .property {
+          border: 1px solid gray;
+          padding: 2px;
+          background: lightgray;
+          color: black;
+        }
+      </style>
+      <template>
+        <div class="items" prefix="rdfs: http://www.w3.org/2000/01/rdf-schema#">
+          <ld-paginator></ld-paginator> Showing {{ limit }} items per page.
+
+          <div about="?item" class="asc" typeof="http://schema.org/NewsArticle">
+            <strong property="rdfs:label" content="?l">{{ l }}</strong>
+            <span data-filter="{{ search ? 'regex(str(?l),\'' + search + '\', \'i\')' : 'true'}}"></span>
+
+            <div class="properties">
+              <div property="?p" content="?o" data-strict>
+                <a class="property" href="{{ p }}">
+                  {{ p.substring(p.lastIndexOf("#") + 1 || p.lastIndexOf("/") + 1) }}
+                </a>
+                {{ o.toString().substring(0, 100) }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </ld-rdfa>
+  </template>
+</body>
+
+</html>
