@@ -558,7 +558,7 @@ const makeLitTemplate = (template: HTMLTemplateElement): ExtendedTemplate => {
                 if (!attributeValue) {
                     continue;
                 }
-                if (attributeValue.startsWith("?")) {
+                if (attributeValue.startsWith("?") || attributeValue.startsWith("$")) {
                     strings = ['', '']
                     update = createAttributeBinder(attributeName, attributeValue)
                 } else {
