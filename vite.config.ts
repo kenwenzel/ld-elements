@@ -10,12 +10,25 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 export default defineConfig({
   base: '/ld-elements/',
   build: {
+    cssCodeSplit: true,
+    lib: {
+      entry: resolve(__dirname, 'src/bundle/index.js'),
+      formats: ['es'],
+      name: 'LD-Elements',
+      // the proper extensions will be added
+      fileName: 'ld-elements'
+    },
     rollupOptions: {
+      external: [/heximal/],
       input: {
-        main: resolve(__dirname, 'index.html'),
+        // do not include index.html here as it collides with name of ld-elements library above
+        // index: resolve(__dirname, 'index.html'),
         wikidata: resolve(__dirname, 'demo/wikidata.html'),
       },
-    },
+      output: {
+        inlineDynamicImports: false
+      }
+    }
   },
   test: {
     environment: 'jsdom'

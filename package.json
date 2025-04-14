@@ -3,6 +3,8 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "files": ["dist"],
+  "module": "./dist/ld-elements.js",
   "scripts": {
     "coverage": "vitest run --coverage",
     "test": "vitest",
@@ -13,10 +15,7 @@
     "preview": "vite preview --host"
   },
   "dependencies": {
-    "@heximal/components": "^0.1.5",
-    "@heximal/element": "^0.1.5",
-    "@heximal/expressions": "^0.1.5",
-    "@heximal/templates": "^0.1.5",
+    "heximal": "^0.1.5",
     "lit": "^3.2.1"
   },
   "devDependencies": {
