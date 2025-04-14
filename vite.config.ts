@@ -24,7 +24,7 @@ export default defineConfig({
       output: {
         inlineDynamicImports: false,
         manualChunks(id) {
-          if (id.endsWith('.ts') || id.endsWith('.js') || id.endsWith('mjs')) {
+          if ((id.startsWith(srcDir) || id.includes('node_modules')) && (id.endsWith('.ts') || id.endsWith('.js') || id.endsWith('mjs'))) {
             return 'ld-elements';
           }
         },
