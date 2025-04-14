@@ -19,7 +19,7 @@ export default defineConfig({
       fileName: 'ld-elements'
     },
     rollupOptions: {
-      external: [/heximal/],
+      // external: [/heximal/],
       input: {
         // do not include index.html here as it collides with name of ld-elements library above
         // index: resolve(__dirname, 'index.html'),
