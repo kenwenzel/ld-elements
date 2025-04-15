@@ -62,7 +62,11 @@
           <ld-paginator></ld-paginator> Showing {{ limit }} items per page.
 
           <div about="?item" class="asc">
-            <span rel="rdf:type" resource="{{ '&lt;' + selected_type + '&gt;' }}" data-paginate="?item"></span>
+            <span data-paginate="?item">
+              <span rel="rdf:type" resource="{{ '&lt;' + selected_type + '&gt;' }}"></span>
+              <span property="rdfs:label" content="?l"></span>
+              <span data-filter="{{ search ? 'regex(str(?l),\'' + search + '\', \'i\')' : 'true'}}"></span>
+            </span>
 
             <strong property="rdfs:label" content="?l">{{ l }}</strong>
             <span data-filter="{{ search ? 'regex(str(?l),\'' + search + '\', \'i\')' : 'true'}}"></span>
