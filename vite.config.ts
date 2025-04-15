@@ -19,7 +19,8 @@ export default defineConfig({
         libEntryFile,
         resolve(__dirname, 'index.html'),
         resolve(__dirname, 'demo/wikidata.html'),
-        resolve(__dirname, 'demo/nfdi4culture.html')
+        resolve(__dirname, 'demo/nfdi4culture.html'),
+        resolve(__dirname, 'demo/dblp.html')
       ],
       output: {
         inlineDynamicImports: false,
