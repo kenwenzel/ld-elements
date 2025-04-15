@@ -267,7 +267,7 @@ export class RDFaToSparqlParser extends RDFaParser {
 
         function addBlock(block: string) {
           self.addLine(block + '{');
-          self.indent;
+          self.indent();
           close += 1;
         }
         function addFilter(block: string) {
