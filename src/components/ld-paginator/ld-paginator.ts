@@ -1,4 +1,4 @@
-import { css, html, LitElement, PropertyValues } from 'lit';
+import { css, html, LitElement, nothing, PropertyValues, TemplateResult } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
 /**
@@ -37,10 +37,22 @@ export class LdPaginatorElement extends LitElement {
   }
 
   render() {
-    const pages = [...Array(this.pageCount).keys()];
-    return html`<div class="pages">
-      ${pages.map(p => this.renderLink(p))}
-    </div>`
+    const pages : Array<TemplateResult> = [];
+    const visible = 10;
+    let min = this.page - visible / 2;
+    let max = this.page + visible / 2;
+    if (min < 0) {
+      max = max + Math.abs(min);
+      min = 0;
+    }
+    if (max > this.pageCount - 1) {
+      min = Math.max(0, min - (max - (this.pageCount - 1)));
+      max = this.pageCount - 1;
+    }
+    for (let p = min; p < max; p++) {
+      pages.push(this.renderLink(p));
+    }
+    return html`<div class="pages">${min > 0 ? html`<span>...</span>` : nothing}${pages}${max < this.pageCount - 1 ? html`<span>...</span>` : nothing}</div>`
   }
 
   static styles = css`
