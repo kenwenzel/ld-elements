@@ -1,4 +1,4 @@
-import {RDFaParser} from './rdfa';
+import { RDFaParser } from './rdfa';
 import {
   NamedNode,
   Literal,
@@ -16,6 +16,8 @@ export class RDFaToSparqlParser extends RDFaParser {
   orderBy: Array<string> = [];
   bindings: Map<string, Quad_Object> = new Map<string, Quad_Object>();
   seen: Set<string> = new Set<string>();
+
+  paginateSparql?: Array<string>;
 
   initialIndentation: number = 1;
   initialStrictness: boolean = false;
@@ -114,6 +116,7 @@ export class RDFaToSparqlParser extends RDFaParser {
 
   getQueryForBinding(
     bindingName: string,
+    patterns: Array<string>,
     offset: any,
     limit: any,
     isSubQuery: boolean = false
@@ -122,7 +125,7 @@ export class RDFaToSparqlParser extends RDFaParser {
     if (!isSubQuery)
       this.resultElem && this.addPrefixDecls(result, this.resultElem);
     result.push('select distinct ?', bindingName, ' where {\n');
-    result.push(...this.patterns());
+    result.push(...patterns);
     result.push('}\n');
     this.modifiers(this.e, result, false);
     result.push('offset ', offset, '\n');
@@ -140,11 +143,7 @@ export class RDFaToSparqlParser extends RDFaParser {
     );
 
     // subquery to limit the solutions for given binding name
-    result.push(
-      '{ ',
-      this.getQueryForBinding(bindingName, offset, limit, true),
-      '}\n'
-    );
+    result.push(`{ ${this.getQueryForBinding(bindingName, this.paginateSparql || this.patterns(), offset, limit, true)} }\n`);
     // end of subquery
 
     // use sparql instead of patterns here since
@@ -163,7 +162,7 @@ export class RDFaToSparqlParser extends RDFaParser {
       bindingName,
       ') as ?count) where {\n'
     );
-    result.push(...this.patterns());
+    result.push(...(this.paginateSparql || this.patterns()));
     result.push('}\n');
     return result.join('');
   }
@@ -223,18 +222,20 @@ export class RDFaToSparqlParser extends RDFaParser {
     if (this.nonempty(e, 'data-ignore').length) {
       // ignore elements that are annotated with data-ignore
       return [e, []];
-    } else if (e.getAttribute('data-select')) {
-      // remove data-select to prevent endless recursion
+    } else if (e.getAttribute('data-select') || e.getAttribute('data-paginate')) {
+      // remove attributes to prevent endless recursion
 
+      const isPaginate = !!e.getAttribute('data-paginate');
       const e1: Element = <Element>e.cloneNode(true);
       e1.removeAttribute('data-select');
+      e1.removeAttribute('data-paginate');
 
       // create sub select
       this.indent();
       const subSelectParser = new SubSelectRDFaToSparqlParser(
         e1,
         base,
-        e.getAttribute('data-select') || undefined,
+        e.getAttribute('data-select') || e.getAttribute('data-paginate') || undefined,
         this.indentation,
         this.strict
       );
@@ -246,8 +247,15 @@ export class RDFaToSparqlParser extends RDFaParser {
         lang1,
         s
       );
-      const innerQuery = subSelectParser.getQuery();
-      this.sparql.push('{\n' + innerQuery + '}\n');
+
+      if (isPaginate) {
+        // paginate query
+        this.paginateSparql = subSelectParser.patterns();
+      } else {
+        // normal inner query
+        const innerQuery = subSelectParser.getQuery();
+        this.sparql.push('{\n' + innerQuery + '}\n');
+      }
       this.dedent();
 
       return [subSelectParser.getElement()!, []];
@@ -350,11 +358,11 @@ export class RDFaToSparqlParser extends RDFaParser {
       .forEach((q) => {
         this.addLine(
           this.tostring(q.subject) +
-            ' ' +
-            this.tostring(q.predicate) +
-            ' ' +
-            this.tostring(q.object) +
-            ' . '
+          ' ' +
+          this.tostring(q.predicate) +
+          ' ' +
+          this.tostring(q.object) +
+          ' . '
         );
         if (this.strict) {
           if (isLiteral) {

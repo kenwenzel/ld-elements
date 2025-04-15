@@ -29,20 +29,22 @@ export class LdRdfaElement extends HeximalElement {
   litTemplate?: TemplateFunction;
 
   parser?: RDFaToSparqlParser;
-  baseQuery?: string;
+  countQuery?: string;
 
   offset = 0;
   count?: number;
 
   async runSparqlQuery(sparqlEndpointUrl: string, sparqlQuery: string): Promise<any[]> {
+    const params = new URLSearchParams({ query: sparqlQuery });
     try {
       const response = await fetch(sparqlEndpointUrl, {
         method: 'POST', // Most SPARQL endpoints accept POST for queries
         headers: {
           'Accept': 'application/sparql-results+json', // Request JSON results
-          'Content-Type': 'application/sparql-query'
+          'Content-Type': 'application/x-www-form-urlencoded'
         },
-        body: sparqlQuery
+        body: params,
+        // mode: 'no-cors' // 'cors' by default
       });
 
       if (!response.ok) {
@@ -106,19 +108,18 @@ export class LdRdfaElement extends HeximalElement {
 
     let result: Promise<any> = Promise.resolve(true);
     if (this.paginate) {
+      const paginatedVar = this.paginate.replace(/[?$]/g, "");
+
       // check if query patterns have been changed
-      const newBaseQuery = replaceExpressions(this.parser.getQuery(), scope);
-      if (newBaseQuery != this.baseQuery) {
+      const newCountQuery = replaceExpressions(this.parser.getCountQuery(paginatedVar), scope);
+      if (newCountQuery != this.countQuery) {
         // if query has been changed then the count needs to be recomputed
-        this.baseQuery = newBaseQuery;
+        this.countQuery = newCountQuery;
         this.count = undefined;
       }
 
-      const paginatedVar = this.paginate.replace(/[?$]/g, "");
       if (this.count === undefined) {
-        const countQuery = this.parser.getCountQuery(paginatedVar);
-        const parameterizedCountQuery = replaceExpressions(countQuery, scope);
-        result = result.then(() => this.runSparqlQuery(this.endpoint!, parameterizedCountQuery).then(bindings => {
+        result = result.then(() => this.runSparqlQuery(this.endpoint!, this.countQuery!).then(bindings => {
           this.count = bindings[0]?.count?.value || 0;
         }));
       }

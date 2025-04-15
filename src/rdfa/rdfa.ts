@@ -29,8 +29,12 @@ class CurieSupport {
     base: string,
     s: rdf.Scope
   ): [Element, NamedNode | Variable | undefined] {
-    const attrValue = e.getAttribute(attr);
+    const attrValue = e.getAttribute(attr)?.trim();
     if (attrValue) {
+      if (attrValue.startsWith('{{') && attrValue.endsWith('}}')) {
+        return [e, rdf.factory.namedNode('expression:' + encodeURIComponent(attrValue.replace(/\{\{\s*|\s*\}\}/g, '')))];
+      }
+
       const result = this.safeCurie.exec(attrValue);
       var curieOrIri: string;
       if (result) {
@@ -134,8 +138,11 @@ class CurieSupport {
     s: rdf.Scope
   ): [Element, Array<NamedNode | Variable>] {
     var expanded: boolean = false;
-    const attrValue = e.getAttribute(attr);
+    const attrValue = e.getAttribute(attr)?.trim();
     if (attrValue) {
+      if (attrValue.startsWith('{{') && attrValue.endsWith('}}')) {
+        return [e, [rdf.factory.namedNode('expression:' + encodeURIComponent(attrValue.replace(/\{\{\s*|\s*\}\}/g, '')))]];
+      }
       const refs: Array<NamedNode | Variable> = attrValue
         .split(/\s+/)
         .flatMap((token) => {

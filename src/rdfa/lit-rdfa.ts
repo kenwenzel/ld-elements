@@ -74,15 +74,33 @@ const toCamelCase = (s: string) =>
 export function replaceExpressions(s: string, model: any): string {
     const splitValue = s.split(bindingRegex);
     if (splitValue.length === 1) {
+        s = replaceUriEncodedExpressions(s, model);
         return hasEscapedBindingMarkers(s) ? unescapeBindingMarkers(s) : s;
     }
 
-    const results = [unescapeBindingMarkers(splitValue[0])];
+    const results = [replaceUriEncodedExpressions(unescapeBindingMarkers(splitValue[0]), model)];
     const exprs: Array<Expression> = [];
     for (let i = 1; i < splitValue.length; i += 2) {
         const exprText = splitValue[i];
         results.push(getSingleValue(`{{ ${exprText} }}`, model))
-        results.push(unescapeBindingMarkers(splitValue[i + 1]));
+        results.push(replaceUriEncodedExpressions(unescapeBindingMarkers(splitValue[i + 1]), model));
+    }
+
+    return results.join('');
+}
+
+function replaceUriEncodedExpressions(s: string, model: any): string {
+    const splitValue = s.split(/<expression:([^>]+)>/g);
+    if (splitValue.length === 1) {
+        return s;
+    }
+
+    const results = [splitValue[0]];
+    const exprs: Array<Expression> = [];
+    for (let i = 1; i < splitValue.length; i += 2) {
+        const exprText = decodeURIComponent(splitValue[i]);
+        results.push(getSingleValue(`{{ ${exprText} }}`, model))
+        results.push(splitValue[i + 1]);
     }
 
     return results.join('');
