@@ -16,14 +16,14 @@
 <body>
   <h-var name="limit" value="50"></h-var>
   <h-var name="search" value=""></h-var>
-  <h-var name="selected_type" value="&lt;urn:nil&gt;"></h-var>
+  <h-var name="selected_type" value="https://dblp.org/rdf/schema#Book"></h-var>
 
   <template h-auto>
     <ld-rdfa endpoint="https://sparql.dblp.org/sparql">
       <template>
         <div prefix="dblp: https://dblp.org/rdf/schema# rdfs: http://www.w3.org/2000/01/rdf-schema#">
-          <select @change="{{ (e) => selected_type = '&lt;' + e.target.value + '&gt;' }}">
-            <option about="?type" rel="rdfs:subClassOf" resource="dblp:Publication" value="$type">
+          <select @change="{{ (e) => selected_type = e.target.value }}">
+            <option about="?type" rel="rdfs:subClassOf" resource="dblp:Publication" value="$type" ?selected="{{ type == selected_type }}">
               {{ type.substring(type.lastIndexOf("#") + 1) }}
             </option>
           </select>
@@ -34,6 +34,7 @@
     <p>
       Items per page: <input .value="{{ limit }}" @change="{{ (e) => limit = e.target.value }}" type="number" />
       Search: <input .value="{{ search }}" @keyup="{{ (e) => search = e.target.value }}" />
+      Selected type: {{ selected_type }}
     </p>
 
     <ld-rdfa endpoint="https://sparql.dblp.org/sparql" paginate="?item" page-size="{{ limit }}">
@@ -61,7 +62,7 @@
           <ld-paginator></ld-paginator> Showing {{ limit }} items per page.
 
           <div about="?item" class="asc">
-            <span rel="rdf:type" resource="{{ selected_type }}" data-paginate="?item"></span>
+            <span rel="rdf:type" resource="{{ '&lt;' + selected_type + '&gt;' }}" data-paginate="?item"></span>
 
             <strong property="rdfs:label" content="?l">{{ l }}</strong>
             <span data-filter="{{ search ? 'regex(str(?l),\'' + search + '\', \'i\')' : 'true'}}"></span>
