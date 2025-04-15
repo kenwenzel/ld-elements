@@ -23,7 +23,7 @@
       Search: <input .value="{{ search }}" @keyup="{{ (e) => search = e.target.value }}" />
     </p>
 
-    <ld-rdfa endpoint="https://nfdi4culture.de/sparql" paginate="?item" page-size="{{ limit }}">
+    <ld-rdfa endpoint="https://data.europa.eu/sparql" paginate="?item" page-size="{{ limit }}">
       <style>
         .items {
           display: flex;
@@ -47,8 +47,8 @@
         <div class="items" prefix="rdfs: http://www.w3.org/2000/01/rdf-schema#">
           <ld-paginator></ld-paginator> Showing {{ limit }} items per page.
 
-          <div about="?item" class="asc" typeof="http://schema.org/NewsArticle">
-            <strong property="rdfs:label" content="?l">{{ l }}</strong>
+          <div about="?item" class="asc" typeof="http://xmlns.com/foaf/0.1/Project">
+            <strong property="http://purl.org/dc/terms/title" content="?l">{{ l }}</strong>
             <span data-filter="{{ search ? 'regex(str(?l),\'' + search + '\', \'i\')' : 'true'}}"></span>
 
             <div class="properties">

@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Culture Knowledge Graph example</title>
+  <title>DBLP example</title>
   <link rel="stylesheet" href="../src/index.css" />
   <script type="module" src="../src/bundle/ld-elements.ts"></script>
   <script type="module">
@@ -14,16 +14,29 @@
 </head>
 
 <body>
-  <h-var name="limit" value="20"></h-var>
+  <h-var name="limit" value="50"></h-var>
   <h-var name="search" value=""></h-var>
+  <h-var name="selected_type" value="&lt;urn:nil&gt;"></h-var>
 
   <template h-auto>
+    <ld-rdfa endpoint="https://sparql.dblp.org/sparql">
+      <template>
+        <div prefix="dblp: https://dblp.org/rdf/schema# rdfs: http://www.w3.org/2000/01/rdf-schema#">
+          <select @change="{{ (e) => selected_type = '&lt;' + e.target.value + '&gt;' }}">
+            <option about="?type" rel="rdfs:subClassOf" resource="dblp:Publication" value="$type">
+              {{ type.substring(type.lastIndexOf("#") + 1) }}
+            </option>
+          </select>
+        </div>
+      </template>
+    </ld-rdfa>
+
     <p>
       Items per page: <input .value="{{ limit }}" @change="{{ (e) => limit = e.target.value }}" type="number" />
       Search: <input .value="{{ search }}" @keyup="{{ (e) => search = e.target.value }}" />
     </p>
 
-    <ld-rdfa endpoint="https://nfdi4culture.de/sparql" paginate="?item" page-size="{{ limit }}">
+    <ld-rdfa endpoint="https://sparql.dblp.org/sparql" paginate="?item" page-size="{{ limit }}">
       <style>
         .items {
           display: flex;
@@ -44,10 +57,12 @@
         }
       </style>
       <template>
-        <div class="items" prefix="rdfs: http://www.w3.org/2000/01/rdf-schema#">
+        <div class="items" prefix="rdfs: http://www.w3.org/2000/01/rdf-schema# rdf: http://www.w3.org/1999/02/22-rdf-syntax-ns#">
           <ld-paginator></ld-paginator> Showing {{ limit }} items per page.
 
-          <div about="?item" class="asc" typeof="http://schema.org/NewsArticle">
+          <div about="?item" class="asc">
+            <span rel="rdf:type" resource="{{ selected_type }}" data-paginate="?item"></span>
+
             <strong property="rdfs:label" content="?l">{{ l }}</strong>
             <span data-filter="{{ search ? 'regex(str(?l),\'' + search + '\', \'i\')' : 'true'}}"></span>
 
