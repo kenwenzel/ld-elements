@@ -23,7 +23,8 @@
       <template>
         <div prefix="dblp: https://dblp.org/rdf/schema# rdfs: http://www.w3.org/2000/01/rdf-schema#">
           <select @change="{{ (e) => selected_type = e.target.value }}">
-            <option about="?type" rel="rdfs:subClassOf" resource="dblp:Publication" value="$type" ?selected="{{ type == selected_type }}">
+            <option about="?type" rel="rdfs:subClassOf" resource="dblp:Publication" value="$type"
+              ?selected="{{ type == selected_type }}">
               {{ type.substring(type.lastIndexOf("#") + 1) }}
             </option>
           </select>
@@ -39,7 +40,7 @@
 
     <ld-rdfa endpoint="https://sparql.dblp.org/sparql" paginate="?item" page-size="{{ limit }}">
       <style>
-        .items {
+        .items, .properties {
           display: flex;
           flex-direction: column;
           gap: 1ex;
@@ -51,6 +52,12 @@
         }
 
         .property {
+          display: flex;
+          align-items: flex-start;
+          gap: 1ex;
+        }
+
+        .property a {
           border: 1px solid gray;
           padding: 2px;
           background: lightgray;
@@ -58,7 +65,8 @@
         }
       </style>
       <template>
-        <div class="items" prefix="rdfs: http://www.w3.org/2000/01/rdf-schema# rdf: http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+        <div class="items"
+          prefix="rdfs: http://www.w3.org/2000/01/rdf-schema# rdf: http://www.w3.org/1999/02/22-rdf-syntax-ns#">
           <ld-paginator></ld-paginator> Showing {{ limit }} items per page.
 
           <div about="?item" class="asc">
@@ -72,17 +80,25 @@
             <span data-filter="{{ search ? 'regex(str(?l),\'' + search + '\', \'i\')' : 'true'}}"></span>
 
             <div class="properties">
-              <div property="?p" content="?o" data-strict>
-                <a class="property" href="{{ p }}">
+              <div class="property" data-property="?p">
+                <a href="{{ p }}">
                   {{ p.substring(p.lastIndexOf("#") + 1 || p.lastIndexOf("/") + 1) }}
                 </a>
-                {{ o.toString().substring(0, 100) }}
+                <div>
+                  <div property="?p" content="?o" data-strict>
+                    {{ o.toString().substring(0, 100) }}
+                  </div>
+                </div>
               </div>
-              <div rel="?rel" resource="?resource" data-strict>
-                <a class="property" href="{{ rel }}">
+              <div class="property" data-rel="?rel">
+                <a href="{{ rel }}">
                   {{ rel.substring(rel.lastIndexOf("#") + 1 || rel.lastIndexOf("/") + 1) }}
                 </a>
-                {{ resource.toString().substring(0, 100) }}
+                <div>
+                  <div rel="?rel" resource="?resource" data-strict>
+                    {{ resource.toString().substring(0, 100) }}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
