@@ -24,6 +24,9 @@ export class LdRdfaElement extends HeximalElement {
   @property({ type: Number, attribute: "page-size" })
   pageSize: number = 20;
 
+  @property({type: Boolean, attribute: "no-shadow"})
+  noShadow?: Boolean;
+
   styleTemplate?: TemplateResult;
 
   litTemplate?: TemplateFunction;
@@ -69,6 +72,10 @@ export class LdRdfaElement extends HeximalElement {
         this.requestUpdate();
       }
     });
+  }
+
+  protected createRenderRoot(): HTMLElement | DocumentFragment {
+    return this.noShadow ? this : super.createRenderRoot();
   }
 
   connectedCallback(): void {

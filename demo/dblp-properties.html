@@ -83,7 +83,7 @@
             <h-var name="show_properties" value="1"></h-var>
 
             <template type="if" if="{{ show_properties }}">
-              <ld-rdfa endpoint="https://sparql.dblp.org/sparql">
+              <ld-rdfa endpoint="https://sparql.dblp.org/sparql" no-shadow>
                 <template>
                   <div about="{{ '&lt;' + item + '&gt;' }}" class="properties">
                     <div class="property" data-property="?p">
