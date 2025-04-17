@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DBLP example</title>
+  <link rel="stylesheet" href="../src/index.css" />
+  <script type="module" src="../src/bundle/ld-elements.ts"></script>
+  <script type="module">
+    import { runAutoTemplates } from '@heximal/components';
+    runAutoTemplates();
+  </script>
+</head>
+
+<body>
+  <h-var name="limit" value="5"></h-var>
+  <h-var name="search" value=""></h-var>
+  <h-var name="selected_type" value="https://dblp.org/rdf/schema#Book"></h-var>
+
+  <template h-auto>
+    <ld-rdfa endpoint="https://sparql.dblp.org/sparql">
+      <template>
+        <div prefix="dblp: https://dblp.org/rdf/schema# rdfs: http://www.w3.org/2000/01/rdf-schema#">
+          <select @change="{{ (e) => selected_type = e.target.value }}">
+            <option about="?type" rel="rdfs:subClassOf" resource="dblp:Publication" value="$type"
+              ?selected="{{ type == selected_type }}">
+              {{ type.substring(type.lastIndexOf("#") + 1) }}
+            </option>
+          </select>
+        </div>
+      </template>
+    </ld-rdfa>
+
+    <p>
+      Items per page: <input .value="{{ limit }}" @change="{{ (e) => limit = e.target.value }}" type="number" />
+      Search: <input .value="{{ search }}" @keyup="{{ (e) => search = e.target.value }}" />
+      Selected type: {{ selected_type }}
+    </p>
+
+    <ld-rdfa endpoint="https://sparql.dblp.org/sparql" paginate="?item" page-size="{{ limit }}">
+      <style>
+        .items,
+        .properties {
+          display: flex;
+          flex-direction: column;
+          gap: 1ex;
+        }
+
+        .properties {
+          font-size: smaller;
+          padding-left: 3ex;
+        }
+
+        .property {
+          display: flex;
+          align-items: flex-start;
+          gap: 1ex;
+        }
+
+        .property a {
+          border: 1px solid gray;
+          padding: 2px;
+          background: lightgray;
+          color: black;
+        }
+      </style>
+      <template>
+        <div class="items"
+          prefix="rdfs: http://www.w3.org/2000/01/rdf-schema# rdf: http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+          <ld-paginator></ld-paginator> Showing {{ limit }} items per page.
+
+          <div about="?item" class="asc">
+            <span data-paginate="?item">
+              <span rel="rdf:type" resource="{{ '&lt;' + selected_type + '&gt;' }}"></span>
+              <span property="rdfs:label" content="?l"></span>
+              <span data-filter="{{ search ? 'regex(str(?l),\'' + search + '\', \'i\')' : 'true'}}"></span>
+            </span>
+
+            <strong property="rdfs:label" content="?l">{{ l }}</strong>
+            <span data-filter="{{ search ? 'regex(str(?l),\'' + search + '\', \'i\')' : 'true'}}"></span>
+
+            <h-var name="show_properties" value="1"></h-var>
+
+            <template type="if" if="{{ show_properties }}">
+              <ld-rdfa endpoint="https://sparql.dblp.org/sparql">
+                <template>
+                  <div about="{{ '&lt;' + item + '&gt;' }}" class="properties">
+                    <div class="property" data-property="?p">
+                      <a href="{{ p }}">
+                        {{ p.substring(p.lastIndexOf("#") + 1 || p.lastIndexOf("/") + 1) }}
+                      </a>
+                      <div>
+                        <div property="?p" content="?o" data-strict>
+                          {{ o.toString().substring(0, 100) }}
+                        </div>
+                      </div>
+                    </div>
+                    <div class="property" data-rel="?rel">
+                      <a href="{{ rel }}">
+                        {{ rel.substring(rel.lastIndexOf("#") + 1 || rel.lastIndexOf("/") + 1) }}
+                      </a>
+                      <div>
+                        <div rel="?rel" resource="?resource" data-strict>
+                          {{ resource.toString().substring(0, 100) }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </ld-rdfa>
+            </template>
+          </div>
+        </div>
+      </template>
+    </ld-rdfa>
+  </template>
+</body>
+
+</html>
