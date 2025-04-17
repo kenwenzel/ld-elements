@@ -1,5 +1,5 @@
 import { HeximalElement } from '@heximal/element';
-import { css, html, nothing, TemplateResult } from 'lit';
+import { css, html, nothing, PropertyValues, TemplateResult } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { until } from 'lit/directives/until.js';
 import { prepareTemplate, replaceExpressions } from '../../rdfa/lit-rdfa';
@@ -24,7 +24,7 @@ export class LdRdfaElement extends HeximalElement {
   @property({ type: Number, attribute: "page-size" })
   pageSize: number = 20;
 
-  @property({type: Boolean, attribute: "no-shadow"})
+  @property({ type: Boolean, attribute: "no-shadow" })
   noShadow?: Boolean;
 
   styleTemplate?: TemplateResult;
@@ -151,6 +151,15 @@ export class LdRdfaElement extends HeximalElement {
         return this.litTemplate!(model);
       });
     }
+
+    // this updates child elements if re-rendering was necessary
+    // TODO find a better way for automatic updates
+    result = result.then(r => {
+      setTimeout(() => {
+        (this.noShadow ? this : this.shadowRoot)?.querySelectorAll('ld-rdfa').forEach(e => e.requestUpdate());
+      })
+      return r;
+    });
 
     return html`${this.styleTemplate}${until(result)}`;
   }
