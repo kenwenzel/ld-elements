@@ -4,6 +4,7 @@ import { _$LH } from 'lit-html/private-ssr-support.js';
 import { EvalAstFactory, parse, Parser } from '@heximal/expressions';
 import type { Expression, Scope } from '@heximal/expressions/lib/eval';
 import { defaultHandlers, Renderers, TemplateFunction, TemplateHandler, TemplateHandlers } from '@heximal/templates';
+import { Signal } from 'signal-polyfill';
 
 const bindingRegex = /(?<!\\){{(.*?)(?:(?<!\\)}})/g;
 
@@ -422,6 +423,16 @@ const makeLitTemplate = (template: HTMLTemplateElement): ExtendedTemplate => {
             const skip = element.hasAttribute("_skipRdfa");
             if (skip) {
                 element.removeAttribute("_skipRdfa");
+                litTemplate.parts.push({
+                    type: 1, // attribute binding
+                    index: nodeIndex,
+                    name: '_model',
+                    strings: ['', ''],
+                    ctor: PropertyPart,
+                    update: (model: any, _handlers: TemplateHandlers, _renderers: Renderers) => {
+                        return [Object.create(model)];
+                    },
+                });
             }
             if (!skip && attributeNames.find(name => {
                 if (name.endsWith("$lit$")) {
@@ -462,6 +473,35 @@ const makeLitTemplate = (template: HTMLTemplateElement): ExtendedTemplate => {
                     break;
                 }
                 // skip attribute bindings
+                continue;
+            } else if (element.tagName === 'H-VAR') {
+                // handle vars that modify the model
+                element.parentNode!.insertBefore(document.createComment(''), element);
+                elementsToRemove.push(element);
+
+                const name = element.getAttribute("name");
+                if (name) {
+                    const valueAttr = element.getAttribute("value");
+                    // this node requires bindings
+                    let update = (model: any, handlers: TemplateHandlers, renderers: Renderers) => {
+                        if (model.hasOwnProperty(name)) {
+                            console.warn(`Variable ${name} already exists in scope`);
+                        }
+                        const value = new Signal.State<unknown>(undefined);
+                        value.set(valueAttr?.startsWith('{{') && valueAttr?.endsWith('}}') ? getSingleValue(valueAttr, model) : valueAttr);
+                        Object.defineProperty(model, name, {
+                            get: () => value.get(),
+                            set: (newValue: unknown) => {
+                                value.set(newValue);
+                            },
+                        });
+                    };
+                    litTemplate.parts.push({
+                        type: 2, // text binding
+                        index: nodeIndex,
+                        update,
+                    });
+                }
                 continue;
             } else if (element.tagName === 'TEMPLATE') {
                 const type = element.getAttribute('type');

@@ -1,4 +1,3 @@
-import { getScope } from '@heximal/components';
 import { HeximalElement } from '@heximal/element';
 import { css, html, nothing, TemplateResult } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
@@ -6,6 +5,7 @@ import { until } from 'lit/directives/until.js';
 import { prepareTemplate, replaceExpressions } from '../../rdfa/lit-rdfa';
 import { RDFaToSparqlParser } from '../../rdfa/rdfa-sparql';
 import { TemplateFunction } from '@heximal/templates';
+import { getModel } from '../../util';
 
 /**
  * Renders HTML templates with RDFa markup.
@@ -104,7 +104,7 @@ export class LdRdfaElement extends HeximalElement {
       return nothing;
     }
 
-    let scope = getScope(this) || {};
+    const scope = getModel(this);
 
     let result: Promise<any> = Promise.resolve(true);
     if (this.paginate) {
