@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simple browser example</title>
+  <link rel="stylesheet" href="../src/index.css" />
+  <script type="module" src="../src/bundle/ld-elements.ts"></script>
+  <script type="module">
+    import { runAutoTemplates } from '@heximal/components';
+    runAutoTemplates();
+  </script>
+</head>
+
+<body>  
+  <template h-auto>
+    <h-var name="search" value=""></h-var>
+    <h-var name="selected_type" value=":none"></h-var>
+    <h-var name="endpoint" value="http://localhost:8080/sparql?model=http://localhost:8080/models/meetup/"></h-var>
+    
+    <h-var name="localpart" .value="{{ (s) => s.substring(s.lastIndexOf('#') + 1 || s.lastIndexOf('/') + 1) }}"></h-var>
+
+    <ld-rdfa endpoint="{{ endpoint }}">
+      <template>
+        <div prefix="rdf: http://www.w3.org/1999/02/22-rdf-syntax-ns# owl: http://www.w3.org/2002/07/owl#">
+          <select @change="{{ (e) => selected_type = e.target.value }}">
+            <option value=":none" ?selected="{{ selected_type == ':none' }}">None</option>
+            <option about="?type" rel="rdf:type" resource="owl:Class" value="$type"
+              ?selected="{{ type == selected_type }}">
+              {{ localpart(type) }}
+            </option>
+          </select>
+        </div>
+      </template>
+    </ld-rdfa>
+
+    <template type="if" if="{{ selected_type != ':none' }}">
+      <p>
+        Search: <input .value="{{ search }}" @keyup="{{ (e) => search = e.target.value }}" />
+      </p>
+      <p>
+        Showing items of type: &lt;{{ selected_type }}&gt;
+      </p>
+
+      <ld-rdfa endpoint="{{ endpoint }}">
+        <template>
+          <div class="items"
+            prefix="rdfs: http://www.w3.org/2000/01/rdf-schema# rdf: http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+            <div about="?item" typeof="{{ '&lt;' + selected_type + '&gt;' }}" class="asc">
+              <strong>{{ item }}</strong>
+
+              <span property="rdfs:label" content="?l" class="optional"></span>
+              <span
+                data-filter="{{ search ? 'regex(str(?l),\'' + search + '\', \'i\') || regex(str(?item),\'' + search + '\', \'i\') ' : 'true'}}"></span>
+
+              <div class="properties union">
+                <div class="property" data-property="?p">
+                  <a href="{{ p }}">{{ localpart(p) }}</a>
+                  <div>
+                    <div property="?p" content="?o" data-strict>
+                      {{ o.toString().substring(0, 100) }}
+                    </div>
+                  </div>
+                </div>
+                <div class="property" data-rel="?rel">
+                  <a href="{{ rel }}">{{ localpart(rel) }}</a>
+                  <div>
+                    <div rel="?rel" resource="?resource" data-strict>
+                      <a href="{{ resource }}">{{ resource }}</a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+        <style>
+          .items,
+          .properties {
+            display: flex;
+            flex-direction: column;
+            gap: 1ex;
+          }
+
+          .properties {
+            font-size: smaller;
+            padding-left: 3ex;
+          }
+
+          .property {
+            display: flex;
+            align-items: flex-start;
+            gap: 1ex;
+          }
+
+          .property > a {
+            border: 1px solid gray;
+            padding: 2px;
+            background: lightgray;
+            color: black;
+          }
+        </style>
+      </ld-rdfa>
+    </template>
+  </template>
+</body>
+
+</html>
